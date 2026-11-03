@@ -874,6 +874,26 @@ function queueTech(id){
   if(rq.length>before)toast(rq.length-before>1?`Queued ${TECH_BY[id].name} and ${rq.length-before-1} prerequisite${rq.length-before>2?'s':''}`:`Queued ${TECH_BY[id].name}`);
   nextQueued();
 }
+// What a tech still needs that isn't in the inventory (counts what's already been paid in).
+function techMissing(t){const c=costOf(t),out={};for(const k in c){const have=(inv[k]||0)+(active===t.id?(paid[k]||0):0);if(have<c[k])out[k]=c[k]-have}return out}
+function howToGet(k){
+  if(HANDCRAFT.includes(k)&&unlockedR(k))return`Hand craft it (I), or set an Assembler to ${N(k)} and belt it into the Hub.`;
+  if(RECIPES[k]&&unlockedR(k))return`Set an ${RECIPES[k].cat==='refine'?'Refinery':'Assembler'} to ${N(k)} and belt it into the Hub.`;
+  for(const o in SMELT)if(SMELT[o].out===k&&(!SMELT[o].tech||has(SMELT[o].tech)))return`Smelt ${N(o)} and belt it into the Hub.`;
+  if(ORE_ITEM.includes(k))return`Mine it and belt it into the Hub.`;
+  return'Belt it into the Hub.';
+}
+// Hand-craft what a tech is missing, as far as the inventory allows.
+function craftMissing(id){
+  const miss=techMissing(TECH_BY[id]);let made=0;
+  const craftN=(k,n)=>{const R=RECIPES[k];let c=0;while(c<n){if(!canAfford(R.in)){
+      if(k==='circuit'&&(inv.wire||0)<R.in.wire){const w=Math.ceil((R.in.wire-(inv.wire||0))/RECIPES.wire.out);if(canAfford({copper_plate:w})){pay({copper_plate:w});addInv('wire',w*RECIPES.wire.out);continue}}
+      break}pay(R.in);addInv(k,R.out);c+=R.out}return c};
+  for(const k in miss)if(HANDCRAFT.includes(k)&&unlockedR(k))made+=craftN(k,miss[k]);
+  const still=techMissing(TECH_BY[id]);const left=Object.keys(still);
+  if(made)blip(640,0.07,'triangle',0.04);
+  toast(made?(left.length?`Crafted ${made}. Still need ${left.map(k=>still[k]+' '+N(k)).join(', ')}.`:`Crafted ${made}. Research can finish now.`):`Not enough plates to hand craft that. ${howToGet(left[0]||Object.keys(miss)[0])}`);
+}
 const techState=t=>(!t.rep&&has(t.id))?'done':active===t.id?'active':t.req.every(has)?'ready':'locked';
 const researchFrac=()=>{if(!active)return 0;const c=costOf(TECH_BY[active]);let a=0,b=0;for(const k in c){a+=Math.min(paid[k]||0,c[k]);b+=c[k]}return a/b};
 
@@ -1596,7 +1616,7 @@ const OBJ=[
   {t:'Belt 10 plates into the Hub at the center',h:'Press 1, then click the Smelter\'s arrow side and drag a belt into the big Hub. Plates go to your inventory.',ok:()=>(delivered.iron_plate||0)+(delivered.copper_plate||0)>=10},
   {t:'Feed a generator with a coal drill and belt',h:'Put a drill on coal and run a belt into the generator so it never runs dry.',ok:()=>genAuto},
   {t:'Research Automation (T)',h:'Press T and start Automation. It pays with plates from your inventory.',ok:()=>has('automation')},
-  {t:'Set an Assembler to make gears',h:'Press 5, place an Assembler, click it and choose Gear. Then belt iron plates into it.',ok:()=>(made.gear||0)>0},
+  {t:'Set an Assembler to make gears',h:'Press 5, place an Assembler, click it and choose Gear. Belt iron plates in and the gears out to the Hub. The next research needs gears.',ok:()=>(made.gear||0)>0},
   {t:'Copy part of your factory with C, then paste it',h:'Press C and drag a box over a few buildings. Then click somewhere else to stamp a copy.',ok:()=>blueprints.length>0},
   {t:'Research Electronics',h:'Electronics needs wire and gears. Set Assemblers to make them and belt them to the Hub.',ok:()=>has('electronics')},
   {t:'Deliver 20 red science to the Hub',h:'Set an Assembler to Red Science and feed it copper plates and gears. Belt the output to the Hub.',ok:()=>(delivered.sci_red||0)>=20},
@@ -1632,6 +1652,7 @@ function renderObjectives(){
   if(power.short>1)al.push(['bad',`${power.short} power grids are short`]);
   const unl=ents.filter(e=>e.type==='tunnel'&&!e.pair).length;if(unl)al.push(['warn',`${unl} tunnel${unl>1?'s':''} not linked`]);
   if(!active&&TECH.some(t=>!t.rep&&techState(t)==='ready'))al.push(['warn','No research running. Press T']);
+  if(active){const m=techMissing(TECH_BY[active]),ks=Object.keys(m);if(ks.length)al.push(['warn',`Research waiting for ${ks.map(k=>m[k]+' '+N(k)).join(', ')}`])}
   if(simSpeed===0)al.push(['blue','Paused. Press . to resume']);else if(simSpeed>1)al.push(['blue',`Running at ${simSpeed}× speed`]);
   if(al.length&&al[0][0]==='bad'&&performance.now()-lastPowerWarn>30000){lastPowerWarn=performance.now();blip(180,0.18,'sawtooth',0.03)}
   objEl.innerHTML=`<div class="h">Goals <small>${done}/${OBJ.length}</small></div><ol>${open.slice(0,3).map((t,i)=>`<li class="${i?'':'first'}">${t}</li>${!i&&firstHint?`<div class="ohint">${firstHint}</div>`:''}`).join('')||'<li class="first">Every goal complete. Push the repeatable research.</li>'}</ol>${al.length?`<div class="alerts">${al.map(([c,m])=>`<div class="al ${c}">${m}</div>`).join('')}</div>`:''}`;
@@ -1646,7 +1667,7 @@ function updateUI(){
   $('accWrap').hidden=!power.storeCap;if(power.storeCap)$('accBar').style.width=(power.stored/power.storeCap*100)+'%';
   const ph=(playTime%DAY)/DAY,hr=(ph*24+6)%24;$('skyName').textContent=`Day ${Math.floor(playTime/DAY)+1} · ${hr<5||hr>=20?'Night':hr<8?'Dawn':hr<17?'Day':'Dusk'}`;
   $('skyTxt').textContent=`${String(Math.floor(hr)).padStart(2,'0')}:${String(Math.floor(hr%1*60/10)*10).padStart(2,'0')} · wind ${Math.round(wind*100)}%`;$('skyBar').style.width=sun*100+'%';
-  if(active){$('rsName').textContent=TECH_BY[active].name+(TECH_BY[active].rep?` ${lv(active)+1}`:'');$('rsTxt').textContent=Math.floor(researchFrac()*100)+'%'+(rq.length?` · +${rq.length} queued`:'');$('rsBar').style.width=researchFrac()*100+'%'}
+  if(active){$('rsName').textContent=TECH_BY[active].name+(TECH_BY[active].rep?` ${lv(active)+1}`:'');{const m=techMissing(TECH_BY[active]),k=Object.keys(m)[0];$('rsTxt').textContent=Math.floor(researchFrac()*100)+'%'+(k?` · needs ${m[k]} ${N(k)}`:'')+(rq.length?` · +${rq.length} queued`:'');}$('rsBar').style.width=researchFrac()*100+'%'}
   else{$('rsName').textContent='Research';$('rsTxt').textContent='None active · press T';$('rsBar').style.width='0%'}
   refreshHotbar();if(tipFor)showTip(tipFor);
   if(!invEl.hidden)renderInv();
@@ -1800,6 +1821,8 @@ function renderTech(){
     return`<div class="tech ${s}"><div class="nm">${t.name}<small>${label}</small></div><p>${t.desc}</p>
     ${s==='done'?'':`<div class="costs">${Object.keys(c).map(i=>{const p=s==='active'?(paid[i]||0):0;const hv=(inv[i]||0)+p;return`<span class="cost ${hv>=c[i]?'ok':'no'}" title="${N(i)}">${img(i,16)}${s==='active'?`<span data-live>${fmt(p)}</span>/`:''}${fmt(c[i])}</span>`}).join('')}</div>`}
     ${s==='locked'?`<div class="req">Needs ${t.req.filter(r=>!has(r)).map(r=>TECH_BY[r].name).join(', ')}</div>`:''}
+    ${(s==='ready'||s==='active')?(()=>{const m=techMissing(t),ks=Object.keys(m);if(!ks.length)return'';const hc=ks.some(k=>HANDCRAFT.includes(k)&&unlockedR(k));
+      return`<div class="req" style="color:var(--warn)">${s==='active'?'Waiting for':'You still need'} ${ks.map(k=>`<span data-live>${m[k]}</span> ${N(k)}`).join(', ')}. ${howToGet(ks[0])}</div>${hc?`<button class="btn sm" data-act="craftmiss" data-r="${t.id}">Hand craft missing</button>`:''}`})():''}
     ${rq.includes(t.id)?`<div class="row" style="margin-top:0;align-items:center"><span class="qtag">QUEUED #${rq.indexOf(t.id)+1}</span><button class="btn sm" data-act="unqueue" data-r="${t.id}">Remove</button></div>`
       :s==='ready'?`<div class="row" style="margin-top:0"><button class="btn pri sm" data-act="research" data-r="${t.id}">${active?'Switch to this':'Start research'}</button>${active?`<button class="btn sm" data-act="queue" data-r="${t.id}">Queue</button>`:''}</div>`
       :s==='locked'?`<div class="row" style="margin-top:0"><button class="btn sm" data-act="queue" data-r="${t.id}">Queue with prerequisites</button></div>`:''}
@@ -1846,6 +1869,7 @@ function onAct(ev){
     case'modin':if(inspected&&(inv[r]||0)>0&&inspected.mods.length<BUILD[inspected.type].slots){inv[r]--;inspected.mods.push(r);calcMods(inspected);blip(700,0.06,'triangle');renderInspector()}break;
     case'modout':if(inspected){const m=inspected.mods.splice(i,1)[0];if(m)addInv(m);calcMods(inspected);blip(400,0.05,'triangle');renderInspector()}break;
     case'research':startResearch(r);renderTech();break;
+    case'craftmiss':craftMissing(r);if(!modalEl.hidden&&modalEl.dataset.kind==='tech')renderTech();break;
     case'cancelr':if(active){refund(paid);paid={};active=null;renderTech()}break;
     case'queue':queueTech(r);renderTech();break;
     case'unqueue':rq=rq.filter(q=>q!==r);renderTech();break;
