@@ -59,8 +59,9 @@ kbd{font:500 10px var(--mono);border:1px solid #fff3;border-bottom-width:2px;bor
 .slot{position:relative;width:42px;height:42px;flex:none;background:var(--panel2);border:1px solid var(--line);border-radius:5px;cursor:pointer;padding:0;display:grid;place-items:center}
 .slot canvas{width:30px;height:30px}
 .slot .k{position:absolute;left:3px;top:1px;font:500 9px var(--mono);color:var(--dim)}
-.slot .lock{position:absolute;inset:0;display:none;place-items:center;background:#0b0d0cd8;border-radius:5px}
-.slot .lock::after{content:"";width:9px;height:7px;border:1.5px solid #8f978d;border-radius:1px;box-shadow:0 -4px 0 -1px #0b0d0c,0 -5px 0 0 #8f978d}
+.slot .lock{position:absolute;right:2px;bottom:2px;width:14px;height:14px;display:none;place-items:center;background:#0b0d0ce6;border-radius:4px}
+.slot.locked canvas{opacity:.35;filter:grayscale(1)}
+.slot .lock::after{content:"";width:7px;height:5px;margin-top:3px;border:1.5px solid #b5c4c8;border-radius:1px;box-shadow:0 -3px 0 -1px #0b0d0c,0 -4px 0 0 #b5c4c8}
 .slot.locked .lock{display:grid}
 .slot.poor::after{content:"";position:absolute;right:3px;top:3px;width:5px;height:5px;border-radius:50%;background:var(--bad)}
 .slot.sel{border-color:var(--amber);box-shadow:inset 0 0 0 1px var(--amber),0 0 14px #f2a93b44}
@@ -492,9 +493,9 @@ const BUILD={
   filter:{name:'Sorter',cat:'logi',cost:{iron_plate:6,gear:2,copper_plate:2},tech:'logistics',desc:'Your chosen item exits to the left. Everything else goes straight through.'},
   chest:{name:'Buffer Crate',cat:'logi',cost:{iron_plate:8},desc:'Holds 400 items and feeds them out the front. Smooths bursty supply.'},
   tunnel:{name:'Belt Tunnel',cat:'logi',cost:{iron_plate:10,gear:5},tech:'logistics',desc:'Place two facing the same way, up to 6 tiles apart. Items dive under whatever sits between them.'},
-  depot:{name:'Supply Depot',cat:'logi',cost:{iron_plate:10,circuit:5},tech:'logistics',desc:'Pick an item. It pulls that item out of your inventory and onto a belt, 10 a second.'},
+  depot:{name:'Supply Depot',cat:'logi',cost:{iron_plate:10,gear:5},tech:'logistics',desc:'Pick an item. It pulls that item out of your inventory and onto a belt, 10 a second.'},
   miner:{name:'Mining Drill',cat:'miner',cost:{iron_plate:10,copper_plate:3},power:3,rate:0.5,slots:1,ores:[1,2,3,4,5,7],next:'miner2',desc:'Place on ore. Mines it forever and pushes it out the front.'},
-  miner2:{name:'Drill Mk2',cat:'miner',cost:{steel:8,circuit:6,motor:2},power:6,rate:1.2,slots:2,ores:[1,2,3,4,5,7],tech:'miner2',desc:'Mines 2.4× faster with two module slots.'},
+  miner2:{name:'Drill Mk2',cat:'miner',cost:{steel:8,circuit:6,gear:8},power:6,rate:1.2,slots:2,ores:[1,2,3,4,5,7],tech:'miner2',desc:'Mines 2.4× faster with two module slots.'},
   pump:{name:'Pumpjack',cat:'miner',cost:{steel:10,gear:10,circuit:5},power:5,rate:0.8,slots:2,ores:[6],tech:'oil',desc:'Place on a dark oil seep. Pumps barrels of crude oil.'},
   furnace:{name:'Smelter',cat:'smelter',cost:{brick:6,iron_plate:2},power:4,spd:1,slots:1,next:'furnace2',desc:'Smelts ore into plates. Picks its recipe from the first item it gets.'},
   furnace2:{name:'Arc Furnace',cat:'smelter',cost:{steel:8,adv_circuit:3,brick:10},power:9,spd:2.2,slots:2,tech:'furnace2',desc:'Smelts 2.2× faster with two module slots.'},
@@ -502,8 +503,8 @@ const BUILD={
   assembler2:{name:'Assembler Mk2',cat:'crafter',rc:'asm',cost:{steel:6,circuit:6,gear:6},power:10,spd:2.2,slots:2,tech:'assembler2',next:'assembler3',desc:'Crafts 2.2× faster with two module slots.'},
   assembler3:{name:'Assembler Mk3',cat:'crafter',rc:'asm',cost:{speed_module:1,processor:4,frame:2},power:18,spd:4,slots:4,tech:'assembler3',desc:'Crafts 4× faster with four module slots.'},
   refinery:{name:'Refinery',cat:'crafter',rc:'refine',cost:{steel:15,gear:10,circuit:10,brick:10},power:12,spd:1,slots:2,tech:'oil',desc:'Chemical recipes: plastic, sulfur, solid fuel, batteries and uranium.'},
-  pole:{name:'Power Pole',cat:'pole',cost:{iron_plate:1,copper_plate:2},radius:2,reach:7,next:'pole2',desc:'Powers machines in the 5×5 area around it and links by wire to other poles up to 7 tiles away.'},
-  pole2:{name:'Big Pole',cat:'pole',cost:{steel:2,copper_plate:4},radius:1,reach:16,tech:'steel',next:'substation',desc:'Carries power far: links to poles up to 16 tiles away. Powers only the 3×3 around it.'},
+  pole:{name:'Power Pole',cat:'pole',cost:{iron_plate:1,copper_plate:2},radius:2,reach:7,next:'substation',desc:'Powers machines in the 5×5 area around it and links by wire to other poles up to 7 tiles away.'},
+  pole2:{name:'Big Pole',cat:'pole',cost:{steel:2,copper_plate:4},radius:1,reach:16,tech:'steel',desc:'Carries power far: links to poles up to 16 tiles away. Powers only the 3×3 around it.'},
   substation:{name:'Substation',cat:'pole',cost:{steel:6,adv_circuit:3,copper_plate:8},radius:4,reach:12,tech:'structures',desc:'Powers a big 9×9 area and links to poles up to 12 tiles away.'},
   generator:{name:'Coal Generator',cat:'power',radius:1,reach:5,cost:{iron_plate:15,copper_plate:5,brick:5},cap:30,fuels:['coal','solid_fuel'],fmax:20,desc:'Burns coal or solid fuel. Only burns what the grid needs.'},
   wind:{name:'Wind Turbine',cat:'power',radius:1,reach:5,cost:{iron_plate:20,gear:10,copper_plate:10},cap:12,tech:'wind',desc:'Free power that rises and falls with the wind.'},
@@ -638,7 +639,7 @@ function makeHub(){
 function newGame(){
   seed=(Math.random()*1e9)|0;legacyPower=false;powerDirty=true;
   ents=[];grid=new Array(W*H).fill(null);
-  inv={iron_plate:140,copper_plate:60,brick:50,coal:30};
+  inv={iron_plate:200,copper_plate:100,brick:50,coal:30};
   techs=new Set();techLv={};active=null;rq=[];paid={};delivered={};made={};playTime=0;won=false;launch=null;genAuto=false;
   buckets=[];curMade={};curDel={};
   genWorld();makeHub();
@@ -649,13 +650,18 @@ function calcMods(e){const s={spd:0,pow:0,prod:0};(e.mods||[]).forEach(m=>{const
 // ================== ACCEPT / LOGIC ==================
 function beltAccept(e,id,dir,p0){
   if(dir===(e.dir+2)%4)return false;
+  const k=dir===e.dir?0:1; // 0 = from behind, 1 = from a side
+  // zipper merge: if the other input was refused just now and this input went last, let it go first
+  if(e.lastIn===k&&e.wait&&playTime-(e.wait[1-k]||-9)<0.25){(e.wait[k]=playTime);return false}
   let p;
   if(dir===e.dir)p=Math.max(0,Math.min(p0||0,0.2));
-  else{const b=at(e.x-DX[e.dir],e.y-DY[e.dir]);p=(b&&isBelt(b.type)&&b.dir===e.dir)?0.5:0}
-  const its=e.items;
-  for(let i=0;i<its.length;i++)if(Math.abs(its[i].p-p)<GAP)return false;
+  // items already on this belt move forward this frame too, so straight entry can allow for one frame of travel
+  const its=e.items,slack=k===0?BUILD[e.type].speed*curDt*0.98:0,fits=q=>its.every(it=>Math.abs(it.p-q)>=GAP-slack);
+  if(k===1){p=-1;for(const q of [0.5,0.4,0.3,0.2,0.1,0])if(fits(q)){p=q;break} // side input drops into the first free spot
+    if(p<0){(e.wait||(e.wait=[-9,-9]))[k]=playTime;return false}}
+  else if(!fits(p)){(e.wait||(e.wait=[-9,-9]))[k]=playTime;return false}
   let i=0;while(i<its.length&&its[i].p>p)i++;
-  its.splice(i,0,{id,p});return true;
+  its.splice(i,0,{id,p});e.lastIn=k;if(e.wait)e.wait[k]=-9;return true;
 }
 function crafterAccept(e,id){
   if(!e.recipe)return false;const need=RECIPES[e.recipe].in[id];if(!need)return false;
@@ -749,7 +755,8 @@ function updFilter(e){
 }
 function updChest(e,dt){
   e.cd-=dt;
-  if(e.cd<=0&&e.buf.length){const t=at(e.x+DX[e.dir],e.y+DY[e.dir]);if(t&&t!==e&&accept(t,e.buf[0],e.dir,0)){e.buf.shift();e.cd=0.08}}
+  if(e.cd<-0.2)e.cd=-0.2;
+  if(e.cd<=1e-9&&e.buf.length){const t=at(e.x+DX[e.dir],e.y+DY[e.dir]);if(t&&t!==e&&accept(t,e.buf[0],e.dir,0)){e.buf.shift();e.cd+=0.08}}
   e.st=e.buf.length?'ok':'idle';
 }
 function updTunnel(e,dt){
@@ -763,9 +770,9 @@ function updTunnel(e,dt){
 function updDepot(e,dt){
   if(!e.filter){e.st='norecipe';return}
   if((inv[e.filter]||0)<=0){e.st='idle';return}
-  e.cd-=dt;if(e.cd>0)return;
+  e.cd-=dt;if(e.cd>1e-9)return;if(e.cd<-0.2)e.cd=-0.2;
   const t=at(e.x+DX[e.dir],e.y+DY[e.dir]);
-  if(t&&t!==e&&t.type!=='hub'&&accept(t,e.filter,e.dir,0)){inv[e.filter]--;e.cd=0.1;e.st='ok'}else e.st='block';
+  if(t&&t!==e&&t.type!=='hub'&&accept(t,e.filter,e.dir,0)){inv[e.filter]--;e.cd+=0.1;e.st='ok'}else e.st='block';
 }
 function retunnel(){
   const tl=ents.filter(e=>e.type==='tunnel');
@@ -958,6 +965,7 @@ function place(type,x,y,dir,quiet,meta){
   if(!canAfford(b.cost)){toast(missing(b.cost));return null}
   pay(b.cost);const e=mkEnt(type,x,y,dir);logOp({k:'add',x,y,t:type});
   applyMeta(e,meta||{r:pipRecipe,f:pipFilter,m:pipMods});
+  if(type==='generator'&&!undoing){let n=0;while(e.fq.length<10&&(inv.coal||0)>0){inv.coal--;e.fq.push('coal');n++}if(n&&!quiet)toast(`Loaded ${n} coal from your inventory`)}
   if(type==='tunnel'&&!(meta&&meta.batch))retunnel();
   for(let i=0;i<5;i++)particles.push({x:x*T+T/2+(Math.random()-.5)*T,y:y*T+T/2+(Math.random()-.5)*T,vx:(Math.random()-.5)*30,vy:(Math.random()-.5)*30,life:.4,max:.4,r:2.2,c:'rgba(242,169,59,1)'});
   if(!meta)blip(isBelt(type)?740:440,0.04,'square',0.025);
@@ -1092,8 +1100,8 @@ function artFrame(g,accent){g.fillStyle='#0a1219';g.fillRect(3,3,26,26);g.fillSt
 function artTank(g,x,y,w,h,col,liquid){g.fillStyle='#0b161e';g.fillRect(x-1,y-1,w+2,h+2);g.fillStyle='#849ba4';g.fillRect(x,y,w,h);g.fillStyle='#283e48';g.fillRect(x+2,y+2,w-4,h-4);g.fillStyle=col;g.fillRect(x+3,y+h*.5,w-6,h*.5-3);g.fillStyle='#b9d8df';g.globalAlpha=.4;g.fillRect(x+2,y+3,1.4,h-6);g.globalAlpha=1;g.fillStyle='#b0c3c6';g.fillRect(x-2,y+3,w+4,2);g.fillRect(x-2,y+h-5,w+4,2);if(liquid){g.fillStyle='#e9fbff';circ(g,x+w*.6,y+h*.7,1.1);g.fill()}}
 function forgeBeltArt(e,t,still){const g=ctx;g.save();g.translate(e.x*T+16,e.y*T+16);g.rotate(e.dir*Math.PI/2);
  g.fillStyle='#0a1119';g.fillRect(-13,-16,26,32);g.fillStyle='#33434c';g.fillRect(-10,-16,20,32);
- g.save();g.beginPath();g.rect(-9,-16,18,32);g.clip();const off=still?0:(t*BUILD[e.type].speed*22)%8;
- for(let yy=-25+off;yy<26;yy+=8){g.fillStyle='#1c2b34';g.fillRect(-9,yy,18,5);g.fillStyle='#516570';g.fillRect(-9,yy,18,1);g.strokeStyle=BUILD[e.type].rail;g.lineWidth=1.8;g.beginPath();g.moveTo(-4,yy+6);g.lineTo(0,yy+2);g.lineTo(4,yy+6);g.stroke()}g.restore();
+ g.save();g.beginPath();g.rect(-9,-16,18,32);g.clip();const off=still?0:(t*BUILD[e.type].speed*T)%8;
+ for(let yy=-24-off;yy<26;yy+=8){g.fillStyle='#1c2b34';g.fillRect(-9,yy,18,5);g.fillStyle='#516570';g.fillRect(-9,yy,18,1);g.strokeStyle=BUILD[e.type].rail;g.lineWidth=1.8;g.beginPath();g.moveTo(-4,yy+6);g.lineTo(0,yy+2);g.lineTo(4,yy+6);g.stroke()}g.restore();
  for(let side of [-1,1]){g.fillStyle=BUILD[e.type].rail;g.fillRect(side<0?-14:11,-16,3,32);g.fillStyle='#293c46';g.fillRect(side<0?-13:12,-16,1,32);for(let yy=-12;yy<16;yy+=8)artRivet(g,side*12.5,yy)}g.restore()}
 function forgeTerrainArt(g,x,y,px,py,o){
  const a=hash2(x*7+31,y*11+17),b=hash2(x*13+5,y*17+9),c=hash2(x*23+3,y*29+13);
@@ -1230,6 +1238,9 @@ function loadIllustration(path,store,key){const im=new Image();im.decoding='asyn
 const ILLUSTRATED_SKIP=new Set(['belt','belt2','belt3','belt4','wind']);
 if(location.protocol.startsWith('http'))for(const key of Object.keys(BUILD))if(!ILLUSTRATED_SKIP.has(key))loadIllustration('machine-'+key+'.svg',ILLUSTRATED_MACHINES,key);
 if(location.protocol.startsWith('http'))for(const key of ['grass','dirt','rock','sand','ore','water'])loadIllustration('terrain-'+key+'.svg',ILLUSTRATED_TERRAIN,key);
+const GLOW_SPR={};
+function glowSprite(col){let c=GLOW_SPR[col];if(c)return c;c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');const gr=g.createRadialGradient(32,32,1,32,32,32);gr.addColorStop(0,col.replace('A','1'));gr.addColorStop(1,col.replace('A','0'));g.fillStyle=gr;g.fillRect(0,0,64,64);return GLOW_SPR[col]=c}
+function drawGlow(x,y,r,col,a){if(a<=.02)return;const pa=ctx.globalAlpha;ctx.globalAlpha=pa*Math.min(1,a);ctx.drawImage(glowSprite(col),x-r,y-r,r*2,r*2);ctx.globalAlpha=pa}
 const NO_ROT=new Set(['pole','pole2','substation','generator','solar','accumulator','reactor']);
 // Machine illustration + everything the player needs to read at a glance.
 function drawIllustrated(e,t,icon){
@@ -1238,8 +1249,9 @@ function drawIllustrated(e,t,icon){
   ctx.save();ctx.translate(cx,cy);if(!NO_ROT.has(e.type))ctx.rotate(e.dir*Math.PI/2);ctx.drawImage(im,-T/2,-T/2,T,T);ctx.restore();
   const badge=(id,r=7.6)=>{ctx.fillStyle='rgba(6,12,18,.86)';circ(ctx,cx,cy,r+1.2);ctx.fill();ctx.strokeStyle='rgba(255,255,255,.18)';ctx.lineWidth=.8;ctx.stroke();ctx.drawImage(ICON[id],cx-r,cy-r,r*2,r*2)};
   const bar=(f,col)=>{ctx.fillStyle='rgba(0,0,0,.75)';ctx.fillRect(x+6,y+T-6.5,T-12,2.6);ctx.fillStyle=col;ctx.fillRect(x+6,y+T-6.5,(T-12)*Math.max(0,Math.min(1,f)),2.6)};
-  const glow=(r,col,a)=>{if(a<=.02)return;const g=ctx.createRadialGradient(cx,cy,1,cx,cy,r);g.addColorStop(0,col.replace('A',a.toFixed(2)));g.addColorStop(1,col.replace('A','0'));ctx.fillStyle=g;ctx.fillRect(cx-r,cy-r,r*2,r*2)};
-  if(b.cat==='crafter'){if(e.recipe)badge(e.recipe);else{ctx.fillStyle='rgba(6,12,18,.86)';circ(ctx,cx,cy,7);ctx.fill();ctx.fillStyle='#d8e2e4';ctx.font='700 10px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('?',cx,cy+.5)}if(e.crafting)bar(e.prog,'#ffc76b')}
+  const glow=(r,col,a)=>drawGlow(cx,cy,r,col,a);
+  const far=!icon&&zoom<0.55;
+  if(far){}else if(b.cat==='crafter'){if(e.recipe)badge(e.recipe);else{ctx.fillStyle='rgba(6,12,18,.86)';circ(ctx,cx,cy,7);ctx.fill();ctx.fillStyle='#d8e2e4';ctx.font='700 10px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('?',cx,cy+.5)}if(e.crafting)bar(e.prog,'#ffc76b')}
   else if(b.cat==='smelter'){glow(15,e.type==='furnace2'?'rgba(150,210,255,A)':'rgba(255,150,60,A)',(e.heat||0)*.85);if(e.rin&&(icon||zoom>0.6)){ctx.fillStyle='rgba(6,12,18,.8)';ctx.fillRect(x+3,y+3,11,11);ctx.drawImage(ICON[e.rin],x+4,y+4,9,9)}if(e.crafting)bar(e.prog,'#ffc76b')}
   else if(b.cat==='miner'){if(e.working&&e.st==='ok'){ctx.save();ctx.translate(cx,cy);ctx.rotate(e.anim);ctx.strokeStyle='rgba(255,210,120,.85)';ctx.lineWidth=1.6;ctx.setLineDash([3,4]);circ(ctx,0,0,7.5);ctx.stroke();ctx.setLineDash([]);ctx.restore()}
     const o=icon?0:ore[idx(e.x,e.y)];if(o){ctx.fillStyle=ORE_COL[o].c;circ(ctx,cx,cy,2.4);ctx.fill()}}
@@ -1251,6 +1263,7 @@ function drawIllustrated(e,t,icon){
   else if(e.type==='filter'||e.type==='depot'){if(e.filter)badge(e.filter,7)}
   else if(e.type==='tunnel'){ctx.save();ctx.translate(cx,cy);ctx.rotate(e.dir*Math.PI/2);ctx.fillStyle='rgba(4,6,8,.9)';ctx.beginPath();ctx.ellipse(0,e.role==='out'?T/2-5:-T/2+5,8,3.6,0,0,Math.PI*2);ctx.fill();ctx.restore();
     if(!icon&&!e.pair){ctx.fillStyle='#ef5b4c';circ(ctx,x+T-7,y+T-8,4.2);ctx.fill();ctx.fillStyle='#fff';ctx.font='800 7px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('!',x+T-7,y+T-7.6)}}
+  if(far){if(b.cat!=='pole'&&e.st){ctx.fillStyle=ST_COL[e.st];ctx.fillRect(x+3,y+3,8,8)}return true}
   if(e.mods)modPips(e);
   // direction markers: orange = output, green = sorter's side exit
   if(!NO_ROT.has(e.type)&&b.cat!=='pole'){edgeMark(e,e.dir,'#ffb84d');if(e.type==='splitter'){edgeMark(e,(e.dir+3)%4,'#ffb84d');edgeMark(e,(e.dir+1)%4,'#ffb84d')}if(e.type==='filter')edgeMark(e,(e.dir+3)%4,'#6cd17a')}
@@ -1258,17 +1271,18 @@ function drawIllustrated(e,t,icon){
   return true;
 }
 
+// Belt frames are drawn once per type, direction and animation step, then stamped.
+const BELT_PHASES=8,BELT_SPR={};
+function beltSprite(type,dir,ph){
+  const k=type+dir+'_'+ph;let c=BELT_SPR[k];if(c)return c;
+  c=document.createElement('canvas');c.width=c.height=T*2;const g=c.getContext('2d');const saved=ctx;ctx=g;g.scale(2,2);
+  try{forgeBeltArt({type,dir,x:0,y:0},ph/(BUILD[type].speed*T),false)}finally{ctx=saved}
+  return BELT_SPR[k]=c;
+}
 function drawBelt(e,t,still){
-  const b=BUILD[e.type];ctx.save();ctx.translate(e.x*T+T/2,e.y*T+T/2);ctx.rotate(e.dir*Math.PI/2);
-  ctx.fillStyle='#1b1d1e';ctx.fillRect(-T/2+2,-T/2,T-4,T);
-  ctx.fillStyle='#2b2f31';ctx.fillRect(-T/2+5,-T/2,T-10,T);
-  ctx.save();ctx.beginPath();ctx.rect(-T/2+5,-T/2,T-10,T);ctx.clip();
-  const off=still?6:((t*b.speed)%0.5)*T;ctx.strokeStyle=b.chev;ctx.lineWidth=2.4;
-  for(let k=-1;k<3;k++){const yy=T/2-off-k*T/2;ctx.beginPath();ctx.moveTo(-6,yy+3);ctx.lineTo(0,yy-3);ctx.lineTo(6,yy+3);ctx.stroke()}
-  ctx.restore();
-  ctx.fillStyle=b.rail;ctx.fillRect(-T/2+2,-T/2,2.5,T);ctx.fillRect(T/2-4.5,-T/2,2.5,T);
-  ctx.restore();
-  forgeBeltArt(e,t,still);
+  const ph=still?0:Math.floor(((t*BUILD[e.type].speed*T)%8)/8*BELT_PHASES)%BELT_PHASES;
+  if(zoom<0.42){ctx.fillStyle='#22313a';ctx.fillRect(e.x*T+2,e.y*T,T-4,T);ctx.fillStyle=BUILD[e.type].rail;ctx.fillRect(e.x*T+(DX[e.dir]?0:T/2-3),e.y*T+(DY[e.dir]?0:T/2-3),DX[e.dir]?T:6,DY[e.dir]?T:6);return}
+  ctx.drawImage(beltSprite(e.type,e.dir,ph),e.x*T,e.y*T,T,T);
 }
 function drawBeltItems(e){
   const s=T*0.44;for(const it of e.items){const k=it.p-0.5;const x=e.x*T+T/2+DX[e.dir]*k*T,y=e.y*T+T/2+DY[e.dir]*k*T;ctx.drawImage(ICON[it.id],x-s/2,y-s/2,s,s)}
@@ -1393,7 +1407,7 @@ function render(now){
   const belts=[],mach=[],tall=[];
   for(let y=Math.max(0,y0);y<=Math.min(H-1,y1);y++)for(let x=Math.max(0,x0);x<=Math.min(W-1,x1);x++){const e=grid[idx(x,y)];if(!e||e.type==='hub')continue;(isBelt(e.type)?belts:e.type==='wind'?tall:mach).push(e)}
   for(const b of belts)drawBelt(b,t);
-  if(zoom>0.32)for(const b of belts)drawBeltItems(b);
+  if(zoom>0.42)for(const b of belts)drawBeltItems(b);
   for(const m of mach)drawMachine(m,t);
   if(zoom>0.4){ctx.strokeStyle='rgba(216,162,58,.35)';ctx.lineWidth=2;ctx.setLineDash([4,5]);ctx.lineDashOffset=-t*20;
     for(const m of mach)if(m.type==='tunnel'&&m.role==='in'&&m.pair){ctx.beginPath();ctx.moveTo(m.x*T+T/2+DX[m.dir]*8,m.y*T+T/2+DY[m.dir]*8);ctx.lineTo(m.pair.x*T+T/2-DX[m.dir]*8,m.pair.y*T+T/2-DY[m.dir]*8);ctx.stroke()}
@@ -1419,7 +1433,7 @@ function render(now){
   const dark=(1-sun)*0.6;
   if(dark>0.01){ctx.fillStyle=`rgba(8,12,34,${dark})`;ctx.fillRect(x0*T,y0*T,(x1-x0+1)*T,(y1-y0+1)*T);
     ctx.globalCompositeOperation='lighter';
-    const glow=(x,y,r,col,a)=>{const g=ctx.createRadialGradient(x,y,1,x,y,r);g.addColorStop(0,col.replace('A',a.toFixed(3)));g.addColorStop(1,col.replace('A','0'));ctx.fillStyle=g;ctx.fillRect(x-r,y-r,r*2,r*2)};
+    const glow=(x,y,r,col,a)=>drawGlow(x,y,r,col,a);
     for(const m of mach){const cx=m.x*T+T/2,cy=m.y*T+T/2;
       if((m.type==='furnace')&&m.heat>0.05)glow(cx,cy,40,'rgba(255,140,50,A)',m.heat*dark*.6);
       else if(m.type==='furnace2'&&m.heat>0.05)glow(cx,cy,40,'rgba(110,180,255,A)',m.heat*dark*.6);
@@ -1431,6 +1445,7 @@ function render(now){
   if(inspected){ctx.strokeStyle='#f2a93b';ctx.lineWidth=2;ctx.setLineDash([5,4]);if(inspected.type==='hub')rr((hub.x-1)*T-2,(hub.y-1)*T-2,3*T+4,3*T+4,10);else rr(inspected.x*T-1,inspected.y*T-1,T+2,T+2,6);ctx.stroke();ctx.setLineDash([])}
   if(mouse.in&&!sel&&bpSel===null){const[tx,ty]=mouseTile();if(inb(tx,ty)){ctx.strokeStyle=tool?TOOL_COL[tool]:'rgba(236,230,214,.35)';ctx.lineWidth=1.5;rr(tx*T+1,ty*T+1,T-2,T-2,4);ctx.stroke()}}
   drawGhost(t);
+  if(flashes.length){const now=performance.now();flashes=flashes.filter(f=>now-f.t<700);for(const f of flashes){const a=1-(now-f.t)/700;ctx.fillStyle=`rgba(239,91,76,${.45*a})`;ctx.fillRect(f.x*T,f.y*T,T,T);ctx.strokeStyle=`rgba(255,140,120,${a})`;ctx.lineWidth=2;ctx.strokeRect(f.x*T+1,f.y*T+1,T-2,T-2)}}
   if(drag&&drag.mode==='rect'){const ax=Math.min(drag.x0,drag.x1),ay=Math.min(drag.y0,drag.y1),bw=Math.abs(drag.x1-drag.x0)+1,bh=Math.abs(drag.y1-drag.y0)+1,col=TOOL_COL[drag.tool];
     ctx.fillStyle=col+'22';ctx.fillRect(ax*T,ay*T,bw*T,bh*T);ctx.strokeStyle=col;ctx.lineWidth=2/zoom+.5;ctx.setLineDash([8,5]);ctx.strokeRect(ax*T,ay*T,bw*T,bh*T);ctx.setLineDash([]);
     ctx.fillStyle=col;ctx.font=`700 ${13/zoom}px "IBM Plex Mono",monospace`;ctx.textAlign='left';ctx.textBaseline='bottom';ctx.fillText(`${bw}×${bh}`,ax*T,ay*T-3/zoom)}
@@ -1439,7 +1454,9 @@ function render(now){
 }
 
 // ================== UPDATE LOOP ==================
+let curDt=1/60;
 function update(dt){
+  curDt=dt;
   playTime+=dt;
   const ph=(playTime%DAY)/DAY;sun=Math.max(0,Math.min(1,0.55+0.85*Math.sin(ph*Math.PI*2)));
   wind=Math.max(0.08,Math.min(1,0.55+0.3*Math.sin(playTime/37)+0.2*Math.sin(playTime/11.3+1.7)));
@@ -1508,7 +1525,13 @@ cv.addEventListener('pointermove',ev=>{
   if(drag.mode==='del'){stepLine(drag.lx,drag.ly,tx,ty,(x,y)=>removeAt(x,y));drag.lx=tx;drag.ly=ty;return}
   if(drag.mode==='place'){
     stepLine(drag.lx,drag.ly,tx,ty,(x,y,d)=>{
-      if(isBelt(sel)){if(drag.placed&&isBelt(drag.placed.type)&&drag.placed.x===x-DX[d]&&drag.placed.y===y-DY[d])drag.placed.dir=d;rot=d}
+      if(isBelt(sel)){if(drag.placed&&isBelt(drag.placed.type)&&drag.placed.x===x-DX[d]&&drag.placed.y===y-DY[d])drag.placed.dir=d;rot=d;
+        const occ=at(x,y);
+        if(occ&&!isBelt(occ.type)){ // something solid in the way
+          if(occ.type!=='hub'){if(!drag.block)drag.block={from:drag.placed&&isBelt(drag.placed.type)?drag.placed:null,d,n:0,what:occ.type==='tunnel'?'a Belt Tunnel':BUILD[occ.type].name};drag.block.n++;flashTile(x,y)}
+          drag.placed=null;return}
+        if(drag.block){const bl=drag.block;drag.block=null;if(tryAutoTunnel(bl,x,y,d)){drag.placed=at(x,y);return}}
+      }
       drag.placed=place(sel,x,y,rot,true)||(at(x,y)&&at(x,y).type===sel?at(x,y):null);
     });drag.lx=tx;drag.ly=ty;
   }
@@ -1516,6 +1539,7 @@ cv.addEventListener('pointermove',ev=>{
 cv.addEventListener('pointerup',()=>{
   if(drag&&drag.mode==='click')openInspector(drag.e);
   if(drag&&drag.mode==='rect')applyRect(drag.tool,drag.x0,drag.y0,drag.x1,drag.y1);
+  if(drag&&drag.mode==='place'&&drag.block)blockedWarn(drag.block,'end');
   if(drag&&(drag.mode==='place'||drag.mode==='del'))endAct();
   drag=null;mouse.down=false;mining=null;
 });
@@ -1561,6 +1585,26 @@ addEventListener('keyup',ev=>{const k=ev.key.toLowerCase();keys.delete(k);if(k==
 addEventListener('blur',()=>{keys.clear();spaceDown=false});
 const SPEEDS=[0,1,2,4];
 function setSpeed(n){simSpeed=n;document.querySelectorAll('#spd .btn').forEach(b=>b.classList.toggle('on',+b.dataset.n===n));renderObjectives()}
+// ---- belt obstacles ----
+let flashes=[];
+function flashTile(x,y){flashes.push({x,y,t:performance.now()})}
+function blockedWarn(bl,why){
+  const far=has('logistics')&&why==='far';
+  toast(`Belt blocked by ${bl.what}. `+(has('logistics')?(far?`Too long for a tunnel (${TUN_RANGE-1} tiles max). Route around it.`:why==='poor'?`Not enough materials for a Belt Tunnel pair.`:'Route around it, or keep dragging past it to tunnel under.'):'Route around it. Logistics research adds Belt Tunnels that go under buildings.'));
+  blip(180,0.08,'square',0.03);
+}
+// Swap the belt before an obstacle and the first free tile after it for a linked tunnel pair.
+function tryAutoTunnel(bl,x,y,d){
+  const f=bl.from;
+  if(!f||bl.d!==d||!(f.x+DX[d]*(bl.n+1)===x&&f.y+DY[d]*(bl.n+1)===y)){blockedWarn(bl,'turn');return false}
+  if(!unlockedB('tunnel')){blockedWarn(bl,'locked');return false}
+  if(bl.n+1>TUN_RANGE){blockedWarn(bl,'far');return false}
+  const need={};for(const k in BUILD.tunnel.cost)need[k]=BUILD.tunnel.cost[k]*2;const back=BUILD[f.type].cost;
+  const ok=Object.keys(need).every(k=>(inv[k]||0)+(back[k]||0)>=need[k]);
+  if(!ok||at(x,y)){blockedWarn(bl,'poor');return false}
+  removeAt(f.x,f.y,true);place('tunnel',f.x,f.y,d,true,{batch:true});place('tunnel',x,y,d,true,{batch:true});retunnel();
+  blip(520,0.06,'triangle',0.04);toast(`Tunneled under ${bl.what}`);return true;
+}
 function deselectAll(){
   const any=sel||tool||bpSel!==null||inspected||!invEl.hidden||!statsEl.hidden||!libEl.hidden;
   clearModes();closeInspector();invEl.hidden=true;statsEl.hidden=true;libEl.hidden=true;hideTip();refreshHotbar(true);
@@ -1610,11 +1654,11 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 
 const OBJ=[
   {t:'Place a Mining Drill (key 3) on iron ore',h:'Press 3, then click a patch of blue-grey iron ore near the Hub. Its orange arrow shows where ore comes out.',ok:()=>ents.some(e=>BUILD[e.type]&&BUILD[e.type].cat==='miner'&&ore[idx(e.x,e.y)]===1)},
-  {t:'Build a Coal Generator (key 8), click it and add coal',h:'Press 8 and place it. Click it and press Add fuel. It powers the small area around it.',ok:()=>power.supply>0},
+  {t:'Build a Coal Generator (key 8)',h:'Press 8 and place it. It loads coal from your inventory and powers the small area around it.',ok:()=>power.supply>0},
   {t:'Connect your drill to power with Power Poles (key 7)',h:'Press 7. The blue area shows what has power. Chain poles from the generator until the drill sits inside the blue.',ok:()=>ents.some(e=>BUILD[e.type]&&BUILD[e.type].cat==='miner'&&e.net!=null&&nets[e.net]&&nets[e.net].supply>0)},
   {t:'Belt iron ore from the drill into a Smelter (key 4)',h:'Press 4 and place a Smelter right where the drill\'s orange arrow points. Or connect them with a belt (key 1).',ok:()=>(made.iron_plate||0)>0},
   {t:'Belt 10 plates into the Hub at the center',h:'Press 1, then click the Smelter\'s arrow side and drag a belt into the big Hub. Plates go to your inventory.',ok:()=>(delivered.iron_plate||0)+(delivered.copper_plate||0)>=10},
-  {t:'Feed a generator with a coal drill and belt',h:'Put a drill on coal and run a belt into the generator so it never runs dry.',ok:()=>genAuto},
+  {t:'Feed a generator with a coal drill and belt',h:'Put a drill on coal, power it, and point it (or a belt) into a generator. Coal keeps flowing so it never runs dry.',ok:()=>genAuto},
   {t:'Research Automation (T)',h:'Press T and start Automation. It pays with plates from your inventory.',ok:()=>has('automation')},
   {t:'Set an Assembler to make gears',h:'Press 5, place an Assembler, click it and choose Gear. Belt iron plates in and the gears out to the Hub. The next research needs gears.',ok:()=>(made.gear||0)>0},
   {t:'Copy part of your factory with C, then paste it',h:'Press C and drag a box over a few buildings. Then click somewhere else to stamp a copy.',ok:()=>blueprints.length>0},
@@ -1643,7 +1687,7 @@ let objDone=0;
 function renderObjectives(){
   if(!inspEl.hidden){objEl.hidden=true;return}objEl.hidden=false;
   let done=0;const open=[];let firstHint='';OBJ.forEach(o=>{if(o.ok())done++;else{if(!open.length)firstHint=o.h||(o.t.startsWith('Research')?'Press T. Queue it and its prerequisites line up for you.':o.t.startsWith('Deliver')?'Click an Assembler to see what it needs. Belt the finished packs into the Hub.':'');open.push(o.t)}});
-  if(done>objDone&&objDone>0)blip(880,0.12,'triangle',0.04);const objChanged=done!==objDone;objDone=done;if(objChanged)updateModebar();
+  if(done>objDone&&objDone>0){blip(880,0.12,'triangle',0.04);const fin=OBJ.filter(o=>o.ok()).map(o=>o.t);const last=fin[fin.length-1];if(last)toast('Goal complete: '+last.replace(/ \(.*?\)/g,''),true)}const objChanged=done!==objDone;objDone=done;if(objChanged)updateModebar();
   const al=[];
   if(power.demand>0&&power.sat<0.98)al.push(['bad',`Power short: machines at ${Math.round(power.sat*100)}% speed`]);
   const dry=ents.filter(e=>BUILD[e.type]&&BUILD[e.type].fuels&&!e.fq.length&&e.energy<=0).length;if(dry)al.push(['warn',`${dry} generator${dry>1?'s':''} out of fuel`]);
