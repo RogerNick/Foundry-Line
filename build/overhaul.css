@@ -120,3 +120,6 @@ body{font-size:15px;letter-spacing:.005em}
 .drawer,#inspector{box-sizing:border-box}
 .drawer{max-height:calc(100vh - var(--topH,66px) - var(--botH,90px) - 10px)}
 #inspector{max-height:calc(100vh - var(--topH,66px) - max(var(--botH,90px), 226px) - 10px)}
+/* panel buttons and research cards stay put on hover; they live inside panels that refresh live */
+.btn,.btn:hover,.btn:hover:not(:disabled),.tech,.tech:hover,.pick button,.pick button:hover,.mslot,.mslot:hover{transform:none!important}
+.btn,.tech,.pick button,.mslot{transition:background-color .15s,border-color .15s,box-shadow .15s,color .15s}

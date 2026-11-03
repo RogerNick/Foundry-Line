@@ -1509,11 +1509,11 @@ function renderHover(){
 function toggleDrawer(el){const o=el.hidden;invEl.hidden=true;statsEl.hidden=true;libEl.hidden=true;el.hidden=!o;if(!el.hidden){el===invEl?renderInv():el===statsEl?renderStats():renderLib()}refreshHotbar(true)}
 function renderInv(){
   const ids=Object.keys(ITEMS).filter(k=>(inv[k]||0)>0);
-  invEl.innerHTML=`<div class="h">Inventory <small>${ids.length} kinds</small></div><p style="color:var(--dim);font-size:12.5px;margin:6px 0 10px">Everything belted into the Hub lands here. Buildings and research draw from it.</p>
+  setLive(invEl,liveMark(`<div class="h">Inventory <small>${ids.length} kinds</small></div><p style="color:var(--dim);font-size:12.5px;margin:6px 0 10px">Everything belted into the Hub lands here. Buildings and research draw from it.</p>
   <div class="inv">${ids.map(k=>`<div class="it" title="${N(k)}">${img(k,28)}<b>${fmt(inv[k])}</b><span>${N(k)}</span></div>`).join('')||'<span style="color:var(--dim)">Empty</span>'}</div>
   <div class="sec"><div class="lbl">Hand craft</div>${HANDCRAFT.filter(r=>r!=='circuit'||has('electronics')).map(r=>{const R=RECIPES[r];const ok=canAfford(R.in);
    return`<div class="craft"><span class="recipe">${Object.keys(R.in).map(k=>R.in[k]+'×'+img(k,16)).join(' + ')} <span class="arrow">→</span> ${R.out}×${img(r,16)}</span><span><button class="btn sm" data-act="hc" data-r="${r}" data-n="1" ${ok?'':'disabled'}>×1</button> <button class="btn sm" data-act="hc" data-r="${r}" data-n="10" ${ok?'':'disabled'}>×10</button></span></div>`}).join('')}
-  <p style="color:var(--dim);font-size:12px;margin:6px 0 0">Hand crafting is instant but doesn't scale. Assemblers do it forever.</p></div>`;
+  <p style="color:var(--dim);font-size:12px;margin:6px 0 0">Hand crafting is instant but doesn't scale. Assemblers do it forever.</p></div>`));
 }
 function handCraft(r,n){const R=RECIPES[r];let c=0;for(let i=0;i<n;i++){if(!canAfford(R.in))break;pay(R.in);addInv(r,R.out);c++}if(c){blip(640,0.05,'triangle');renderInv()}}
 
@@ -1523,11 +1523,11 @@ function renderStats(){
   const ids=Object.keys(ITEMS).map(k=>({k,m:rateOf(k,'m'),d:rateOf(k,'d')})).filter(r=>r.m>0||r.d>0).sort((a,b)=>b.m-a.m);
   const counts={};ents.forEach(e=>{if(e.type!=='hub')counts[e.type]=(counts[e.type]||0)+1});const s=power.src;
   const srcRow=(n,v,col)=>v>0.01?`<div class="kv"><span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${col};margin-right:6px"></span>${n}</span><b>${fmtW(v)}</b></div>`:'';
-  statsEl.innerHTML=`<div class="h">Production <small>last ${buckets.length}s</small></div>
+  setHTML(statsEl,`<div class="h">Production <small>last ${buckets.length}s</small></div>
   ${ids.length?`<table class="st" style="margin-top:10px"><tr><th>Item</th><th>Made/min</th><th>To hub</th><th></th></tr>${ids.map(r=>`<tr><td>${img(r.k,20)}${N(r.k)}</td><td class="n">${r.m.toFixed(r.m<10?1:0)}</td><td class="n">${r.d.toFixed(r.d<10?1:0)}</td><td>${spark60(r.k)}</td></tr>`).join('')}</table>`:'<p style="color:var(--dim)">Nothing is being produced yet. Place a drill on ore.</p>'}
   <div class="sec"><div class="lbl">Power right now</div>${srcRow('Coal & fuel',s.coal,'#e05a3a')}${srcRow('Wind',s.wind,'#e8ecef')}${srcRow('Solar',s.solar,'#f2d23b')}${srcRow('Nuclear',s.nuclear,'#5fd35a')}${srcRow('Accumulators',s.battery,'#5aa9f0')}${srcRow('Charging accumulators',s.charging,'#5aa9f0')}
    <div class="kv"><span>Demand</span><b>${fmtW(power.demand)}</b></div>${power.storeCap?`<div class="kv"><span>Stored</span><b>${fmt(power.stored*30/1000)} / ${fmt(power.storeCap*30/1000)} MJ</b></div>`:''}</div>
-  <div class="sec"><div class="lbl">Factory</div>${Object.keys(counts).map(t=>`<div class="kv"><span>${BUILD[t].name}</span><b>${counts[t]}</b></div>`).join('')}<div class="kv"><span>Time played</span><b>${fmtTime(playTime)}</b></div></div>`;
+  <div class="sec"><div class="lbl">Factory</div>${Object.keys(counts).map(t=>`<div class="kv"><span>${BUILD[t].name}</span><b>${counts[t]}</b></div>`).join('')}<div class="kv"><span>Time played</span><b>${fmtTime(playTime)}</b></div></div>`);
 }
 
 let bpRename=-1,bpDelArm=-1,bpExportIdx=-1,bpImportOpen=false;
@@ -1596,10 +1596,22 @@ function renderInspector(){
     if(b.next){const nb=BUILD[b.next];h+=`<div class="sec"><div class="lbl">Upgrade to ${nb.name}</div>${unlockedB(b.next)?`${costHTML(nb.cost)}<p style="color:var(--dim);font-size:12px;margin:6px 0 0">The old building's cost is refunded.</p><div class="row"><button class="btn pri" data-act="upg" ${canAfford(nb.cost)?'':'disabled'}>Upgrade</button></div>`:`<span style="color:var(--dim);font-size:13px">Research ${TECH_BY[nb.tech].name} first.</span>`}</div>`}
     h+=`<div class="row"><button class="btn" data-act="rot">Rotate <kbd>R</kbd></button><button class="btn" data-act="copy">Copy <kbd>Q</kbd></button><button class="btn" data-act="del">Remove</button><button class="btn" data-act="close">Close</button></div>`;
   }
-  inspEl.innerHTML=h;inspEl.scrollTop=sc;
+  if(setLive(inspEl,liveMark(h)))inspEl.scrollTop=sc;
 }
 
-function openModal(kind,html){modalEl.dataset.kind=kind;sheetEl.innerHTML=html;modalEl.hidden=false;hideTip()}
+function setHTML(el,h){if(el._h!==h){el.innerHTML=h;el._h=h;el._sk=null;return true}return false}
+// Values inside <b data-live>, <span data-live> and bar widths marked data-lw are patched in place;
+// anything else that changes rebuilds the panel. Keeps buttons under the cursor stable.
+function setLive(el,h){
+  const vals=[];
+  const sk=h.replace(/<(b|span) data-live>([^<]*)<\/\1>/g,(m,t,v)=>{vals.push(['t',v]);return`<${t} data-live></${t}>`})
+            .replace(/data-lw style="width:([0-9.]+)%/g,(m,v)=>{vals.push(['w',v+'%']);return'data-lw style="width:%'});
+  if(el._sk===sk){const nodes=el.querySelectorAll('[data-live],[data-lw]');
+    if(nodes.length===vals.length){nodes.forEach((n,i)=>{const[k,v]=vals[i];if(k==='t'){if(n.innerHTML!==v)n.innerHTML=v}else if(n.style.width!==v)n.style.width=v});el._h=h;return false}}
+  el._sk=sk;el._h=h;el.innerHTML=h;return true;
+}
+const liveMark=h=>h.replace(/<b>/g,'<b data-live>').replace(/<i style="width:/g,'<i data-lw style="width:');
+function openModal(kind,html){modalEl.dataset.kind=kind;sheetEl.innerHTML=html;sheetEl._h=null;modalEl.hidden=false;hideTip()}
 function closeModal(){modalEl.hidden=true;modalEl.dataset.kind=''}
 function closeAll(){closeModal();closeInspector();invEl.hidden=true;statsEl.hidden=true;libEl.hidden=true}
 modalEl.addEventListener('pointerdown',ev=>{if(ev.target===modalEl&&!(launch&&!launch.shown))closeModal()});
@@ -1608,16 +1620,17 @@ function renderTech(){
   const tree=sheetEl.querySelector('.tree');const sl=tree?tree.scrollLeft:0,st=sheetEl.scrollTop;
   const tiers={};TECH.forEach(t=>(tiers[t.tier]=tiers[t.tier]||[]).push(t));
   const done=TECH.filter(t=>!t.rep&&has(t.id)).length,total=TECH.filter(t=>!t.rep).length;
-  sheetEl.innerHTML=`<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><h2>Research</h2><p class="sub">Pick a technology. It pulls the cost from your inventory as items reach the Hub, up to 30 a second. ${done}/${total} complete. Queue anything, even locked tech, and its prerequisites line up automatically. Scroll sideways for later tiers.</p>${rq.length?`<p class="sub" style="margin-top:-8px;color:var(--blue)">Queue: ${rq.map(q=>TECH_BY[q].name).join(' → ')} <button class="btn sm" data-act="clearq" style="margin-left:6px">Clear queue</button></p>`:''}</div><button class="btn" data-act="closem">Close <kbd>Esc</kbd></button></div>
+  const changed=setLive(sheetEl,`<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><h2>Research</h2><p class="sub">Pick a technology. It pulls the cost from your inventory as items reach the Hub, up to 30 a second. ${done}/${total} complete. Queue anything, even locked tech, and its prerequisites line up automatically. Scroll sideways for later tiers.</p>${rq.length?`<p class="sub" style="margin-top:-8px;color:var(--blue)">Queue: ${rq.map(q=>TECH_BY[q].name).join(' → ')} <button class="btn sm" data-act="clearq" style="margin-left:6px">Clear queue</button></p>`:''}</div><button class="btn" data-act="closem">Close <kbd>Esc</kbd></button></div>
   <div class="tree">${Object.keys(tiers).map(k=>`<div class="tier"><div class="lbl">TIER ${k}</div>${tiers[k].map(t=>{const s=techState(t),c=costOf(t);
-    const label=s==='done'?'Done':s==='active'?Math.floor(researchFrac()*100)+'%':s==='ready'?(t.rep?`Level ${lv(t.id)+1}`:'Ready'):'Locked';
+    const label=s==='done'?'Done':s==='active'?`<span data-live>${Math.floor(researchFrac()*100)}%</span>`:s==='ready'?(t.rep?`Level ${lv(t.id)+1}`:'Ready'):'Locked';
     return`<div class="tech ${s}"><div class="nm">${t.name}<small>${label}</small></div><p>${t.desc}</p>
-    ${s==='done'?'':`<div class="costs">${Object.keys(c).map(i=>{const p=s==='active'?(paid[i]||0):0;const hv=(inv[i]||0)+p;return`<span class="cost ${hv>=c[i]?'ok':'no'}" title="${N(i)}">${img(i,16)}${s==='active'?fmt(p)+'/':''}${fmt(c[i])}</span>`}).join('')}</div>`}
+    ${s==='done'?'':`<div class="costs">${Object.keys(c).map(i=>{const p=s==='active'?(paid[i]||0):0;const hv=(inv[i]||0)+p;return`<span class="cost ${hv>=c[i]?'ok':'no'}" title="${N(i)}">${img(i,16)}${s==='active'?`<span data-live>${fmt(p)}</span>/`:''}${fmt(c[i])}</span>`}).join('')}</div>`}
     ${s==='locked'?`<div class="req">Needs ${t.req.filter(r=>!has(r)).map(r=>TECH_BY[r].name).join(', ')}</div>`:''}
     ${rq.includes(t.id)?`<div class="row" style="margin-top:0;align-items:center"><span class="qtag">QUEUED #${rq.indexOf(t.id)+1}</span><button class="btn sm" data-act="unqueue" data-r="${t.id}">Remove</button></div>`
       :s==='ready'?`<div class="row" style="margin-top:0"><button class="btn pri sm" data-act="research" data-r="${t.id}">${active?'Switch to this':'Start research'}</button>${active?`<button class="btn sm" data-act="queue" data-r="${t.id}">Queue</button>`:''}</div>`
       :s==='locked'?`<div class="row" style="margin-top:0"><button class="btn sm" data-act="queue" data-r="${t.id}">Queue with prerequisites</button></div>`:''}
-    ${s==='active'?`<button class="btn sm" data-act="cancelr">Cancel and refund</button>`:''}</div>`}).join('')}</div>`).join('')}</div>`;
+    ${s==='active'?`<button class="btn sm" data-act="cancelr">Cancel and refund</button>`:''}</div>`}).join('')}</div>`).join('')}</div>`);
+  if(!changed)return;
   const nt=sheetEl.querySelector('.tree');if(nt)nt.scrollLeft=sl;sheetEl.scrollTop=st;
 }
 let resetArm=false,saveIO=null;
@@ -1639,8 +1652,11 @@ function showVictory(){
   chord();
 }
 
-document.addEventListener('click',ev=>{
-  const b=ev.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,r=b.dataset.r,i=+b.dataset.i;
+document.addEventListener('pointerdown',ev=>{if(ev.button!==0)return;const b=ev.target.closest('[data-act]');if(!b||b.disabled)return;ev.preventDefault();onAct(ev)});
+// keyboard activation (Enter/Space) still arrives as a click with detail 0
+document.addEventListener('click',ev=>{if(ev.detail===0)onAct(ev)});
+function onAct(ev){
+  const b=ev.target.closest('[data-act]');if(!b||b.disabled)return;const a=b.dataset.act,r=b.dataset.r,i=+b.dataset.i;
   switch(a){
     case'inv':toggleDrawer(invEl);break;case'stats':toggleDrawer(statsEl);break;case'lib':toggleDrawer(libEl);break;case'tech':openTech();break;case'help':openHelp();break;
     case'close':closeInspector();break;case'closem':closeModal();break;
@@ -1683,7 +1699,7 @@ document.addEventListener('click',ev=>{
     case'bpimpclose':bpImportOpen=false;renderLib();break;
     case'bpimp2':{const ta=$('bpIn');if(ta&&bpImport(ta.value)){bpImportOpen=false;toast('Blueprint imported');renderLib()}else toast('That text is not a valid blueprint.');break}
   }
-});
+}
 
 // ================== MINIMAP ==================
 const mctx=miniEl.getContext('2d');
