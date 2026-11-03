@@ -7,7 +7,7 @@ const read = f => fs.readFileSync(path.join(dir, f), 'utf8');
 
 let game = read('game.html');
 const head = read('site-head.html');
-const css = read('site.css');
+const css = read('site.css') + '\n' + read('overhaul.css');
 const boot = read('site-boot.js');
 
 function swap(from, to) {

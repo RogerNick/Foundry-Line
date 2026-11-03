@@ -1,0 +1,77 @@
+/* FOUNDRY LINE — INDUSTRIAL COMMAND / visual redesign layer */
+:root{--bg:#080d13;--ink:#eef3f5;--dim:#91a0ae;--panel:rgba(13,22,31,.94);--panel2:#192734;--line:#344756;--amber:#ffba51;--amber-ink:#191104;--good:#53dfb1;--bad:#ff6d71;--blue:#65c9f4;--warn:#ffd178;--disp:'Rajdhani','Saira Condensed',sans-serif;--body:'Inter','Barlow',sans-serif;--mono:'IBM Plex Mono',monospace;color-scheme:dark}
+body{background:#080d13;letter-spacing:.005em}
+.panel{background:linear-gradient(145deg,rgba(22,34,46,.97),rgba(9,17,25,.95));border:1px solid #405464;border-radius:12px;box-shadow:0 14px 38px #0008,inset 0 1px #ffffff13;backdrop-filter:blur(18px)}
+.panel::before{content:'';position:absolute;pointer-events:none;top:0;left:16px;right:16px;height:1px;background:linear-gradient(90deg,transparent,#ffbd5877,transparent)}
+#top{top:14px;left:16px;right:16px;gap:10px;align-items:center}
+.brand{font-size:26px;letter-spacing:.105em;padding:10px 19px;text-shadow:0 0 22px #ffba5124;white-space:nowrap}
+.brand span,.h{color:#ffba51}
+.brand::before{content:'◈';position:static;height:auto;background:none;font:700 21px var(--body);color:var(--amber);margin-right:12px;filter:drop-shadow(0 0 8px #ffba5188)}
+.meter{min-width:185px;padding:9px 15px;gap:7px}
+.lab{font-weight:700;letter-spacing:.13em;font-size:10px}
+.lab b{font-size:12px;color:#e8f1f7}
+.bar,.pbar{height:7px;background:#050b11;border-radius:99px;border:1px solid #324451;overflow:hidden}
+.bar i,.pbar i{border-radius:99px;box-shadow:0 0 12px currentColor}
+.menu{gap:5px;padding:6px 7px}
+.btn{background:linear-gradient(180deg,#263847,#162430);border:1px solid #435969;color:#e9f0f4;font-weight:700;border-radius:7px;padding:10px 13px;transition:background .18s,border-color .18s,transform .18s,box-shadow .18s;box-shadow:inset 0 1px #ffffff10}
+.btn:hover:not(:disabled){background:linear-gradient(180deg,#364c5b,#1d3240);border-color:#ffc16c;transform:translateY(-1px);box-shadow:0 3px 18px #ffba511a}
+.btn.pri{background:linear-gradient(180deg,#ffd07d,#f3a52f);color:#201507;border-color:#ffe0a2;box-shadow:0 2px 15px #f2a93b35}
+.btn.pri:hover:not(:disabled){filter:brightness(1.1)}
+kbd{border-radius:4px!important;opacity:.75}
+#obj{width:295px;padding:16px 18px;right:16px}
+.h{font-size:16px;letter-spacing:.12em}
+#obj ol{gap:10px;margin-top:14px}
+#obj li{line-height:1.5}
+#obj li::before{border-radius:50%;width:8px;height:8px;margin-top:6px}
+#obj li.first::before{box-shadow:0 0 10px #ffba51a0;background:var(--amber)}
+#hotbar{bottom:18px;gap:6px;padding:9px;border-radius:14px;box-shadow:0 20px 45px #000b,0 0 0 1px #ffffff08}
+.grp{gap:5px;padding-right:10px;margin-right:5px}
+.slot{width:48px;height:48px;border-radius:9px;background:linear-gradient(145deg,#263949,#101d29);border-color:#405565;transition:transform .16s,box-shadow .16s,border-color .16s}
+.slot:hover{transform:translateY(-4px);border-color:#ffd084;box-shadow:0 5px 16px #ffba5125}
+.slot.sel{border-color:#ffd084;background:linear-gradient(145deg,#544129,#2a281f);box-shadow:inset 0 0 0 1px #ffba51,0 0 22px #ffba5166}
+.slot .k{font-size:10px;left:5px;top:3px;color:#c1d1d9}
+#mini{right:16px;bottom:18px;width:176px;height:176px;border-radius:12px;border:2px solid #496073;box-shadow:0 15px 35px #0009,0 0 0 5px #0e1a25}
+#hover{border-radius:8px;color:#c2d1d9;padding:9px 13px}
+#modebar{border-radius:10px;padding:11px 16px;box-shadow:0 12px 32px #0009}
+.drawer,#inspector{padding:18px;border-radius:12px;scrollbar-color:#516575 transparent}
+.drawer{left:16px;width:350px}#inspector{right:16px;width:320px}
+.ititle{font-size:28px;font-weight:800;letter-spacing:.025em}
+.sec{margin-top:16px;padding-top:14px;border-color:#344755}
+.sec>.lbl{color:#a4b6c2;font-size:10px;font-weight:800;letter-spacing:.14em}
+.stat{border:1px solid #ffffff1b;border-radius:99px;padding:5px 9px}
+.pick button,.mslot,.it,.bp,.tech{border-radius:8px;background:linear-gradient(145deg,#233442,#14222e);border-color:#3c5262}
+.pick button:hover,.mslot:hover{border-color:#ffc36c;box-shadow:0 0 12px #ffba5120}
+.pick button.on,.bp.on{background:#ffba5119;border-color:#ffba51}
+.it{padding:8px 4px;gap:5px}
+.cost{background:#09131d;border:1px solid #324552;border-radius:5px;padding:4px 6px}
+#tip{border-radius:10px;padding:15px 17px;box-shadow:0 14px 38px #000b}
+#tip .t{font-size:22px}
+#modal{background:rgba(3,8,14,.8);backdrop-filter:blur(9px)}
+.sheet{padding:26px 30px;border-radius:16px;box-shadow:0 24px 90px #000e}
+.sheet h2{font-size:38px;letter-spacing:.06em}
+.tech{padding:14px;transition:transform .15s,border-color .15s}
+.tech:hover{transform:translateY(-2px);border-color:#ffba5188}
+.glogo{font-size:62px;letter-spacing:.06em;text-shadow:0 0 28px #ffba5122}
+#gate{background:radial-gradient(ellipse at 50% 20%,#263c4a 0%,#0b1620 48%,#060b11 100%)}
+#gate::before{content:'';position:absolute;inset:0;pointer-events:none;opacity:.27;background:repeating-linear-gradient(0deg,transparent 0 47px,#62809233 48px),repeating-linear-gradient(90deg,transparent 0 47px,#62809233 48px);mask-image:linear-gradient(to bottom,#000,transparent 95%)}
+.gbox{position:relative;padding:32px;border-radius:16px;box-shadow:0 24px 80px #000c}
+.gbox.wide{padding:34px}
+.field input,.bp input,.ta{background:#0a1520;border-color:#3b5363;color:#eef4f7;border-radius:8px;padding:11px 12px}
+.field input:focus{outline:1px solid #ffba51;box-shadow:0 0 0 3px #ffba5122}
+.scard{background:linear-gradient(155deg,#253746,#121f2a);border-color:#405768;border-radius:12px;padding:19px;min-height:190px;transition:transform .2s,border-color .2s}
+.scard:hover{transform:translateY(-3px);border-color:#ffba51}
+.scard.empty{background:#ffffff05}
+.scard .sn{font-size:15px}
+.scard .st2{font-size:27px}
+@media(max-width:900px){#top{top:8px;left:8px;right:8px;gap:5px}.brand{font-size:19px;padding:8px 10px}.brand::before{margin-right:6px;font-size:16px}.meter{min-width:120px;padding:7px 9px}#obj{right:8px;width:235px;padding:10px}#hotbar{bottom:8px;padding:5px;max-width:calc(100% - 170px)}.slot{width:40px;height:40px}#mini{width:140px;height:140px;right:8px;bottom:8px}.drawer{left:8px;max-width:calc(100vw - 36px)}#inspector{right:8px;max-width:calc(100vw - 36px)}}
+@media(max-width:600px){.menu{margin-left:0}.brand{font-size:18px}.meter{min-width:100px}#obj{max-width:200px}#hotbar{left:8px;right:8px;max-width:calc(100% - 16px);bottom:8px}#mini{width:92px;height:92px;bottom:75px}#hover{display:none}.gbox{padding:22px}}
+@media(prefers-reduced-motion:reduce){.btn,.slot,.scard,.tech{transition:none}}
+
+/* fixes applied after the overhaul */
+/* in-flow panels need their own positioning box for the top highlight line; fixed panels already have one */
+.brand,.meter,.menu,.spd,.sheet,.gbox,.toast{position:relative}
+/* keep the hotbar clear of the larger minimap */
+#hotbar{right:calc(16px + 176px + 26px);max-width:calc(100% - 236px)}
+.slot{width:44px;height:44px}
+@media(max-width:900px){#hotbar{right:calc(8px + 140px + 18px);max-width:calc(100% - 180px)}}
+@media(max-width:600px){#hotbar{right:8px;max-width:calc(100% - 16px)}}
