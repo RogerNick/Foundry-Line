@@ -1,0 +1,1699 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Foundry Line: build a factory, automate everything, and launch a rocket.">
+<meta name="theme-color" content="#0b0d0c">
+<title>Foundry Line</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: full-bleed canvas world, instrument-panel HUD pinned to the edges like a control room */
+:root{
+  --bg:#0b0d0c; --ink:#ece6d6; --dim:#8f978d; --panel:rgba(20,24,22,.92); --panel2:#222925; --line:#343d37;
+  --amber:#f2a93b; --amber-ink:#1b1306; --good:#6cd17a; --bad:#ef5b4c; --blue:#5aa9f0; --warn:#e6b84a;
+  --disp:'Saira Condensed','Arial Narrow',sans-serif; --body:'Barlow',system-ui,sans-serif; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font:500 14px/1.4 var(--body);overflow:hidden;user-select:none;-webkit-user-select:none}
+#cv{position:fixed;inset:0;width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}
+#cv.tool{cursor:cell}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;backdrop-filter:blur(6px)}
+#top{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;pointer-events:none;z-index:5}
+#top>*{pointer-events:auto}
+.brand{font:800 22px/1 var(--disp);letter-spacing:.06em;text-transform:uppercase;padding:9px 12px;color:var(--ink);display:flex;align-items:center}
+.brand span{color:var(--amber)}
+.meter{padding:7px 11px;min-width:200px;display:flex;flex-direction:column;justify-content:center;gap:4px}
+.lab{display:flex;justify-content:space-between;gap:10px;font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim)}
+.lab b{font:500 12px var(--mono);letter-spacing:0;text-transform:none;color:var(--ink);font-variant-numeric:tabular-nums}
+.bar{height:6px;background:#0007;border-radius:3px;overflow:hidden}
+.bar.thin{height:3px}
+.bar i{display:block;height:100%;width:0;background:var(--good);transition:width .2s}
+.menu{display:flex;gap:6px;padding:6px;align-items:center;margin-left:auto;flex-wrap:wrap}
+.btn{background:var(--panel2);border:1px solid var(--line);color:var(--ink);font:600 13px/1 var(--body);padding:8px 11px;border-radius:5px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--amber)}
+.btn:focus-visible,.slot:focus-visible{outline:2px solid var(--amber);outline-offset:1px}
+.btn.pri{background:var(--amber);color:var(--amber-ink);border-color:var(--amber)}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn.danger{border-color:#ef5b4c88;color:var(--bad)}
+.btn:disabled{opacity:.4;cursor:not-allowed;border-color:var(--line)}
+.btn.sm{padding:5px 8px;font-size:12px}
+kbd{font:500 10px var(--mono);border:1px solid #fff3;border-bottom-width:2px;border-radius:3px;padding:1px 4px;color:var(--dim)}
+.btn.pri kbd{color:var(--amber-ink);border-color:#0004}
+#obj{position:fixed;right:max(12px,env(safe-area-inset-right,0px));top:var(--topH,66px);width:280px;padding:10px 12px;z-index:4}
+.h{font:700 13px/1 var(--disp);letter-spacing:.14em;text-transform:uppercase;color:var(--amber);display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.h small{font:500 11px var(--mono);color:var(--dim);letter-spacing:0}
+#obj ol{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+#obj li{display:flex;gap:8px;align-items:flex-start;font-size:13px;line-height:1.3}
+#obj li::before{content:"";flex:none;width:9px;height:9px;margin-top:4px;border:1.5px solid var(--dim);border-radius:2px}
+#obj li.first{color:var(--ink)}#obj li.first::before{border-color:var(--amber);background:#f2a93b33}
+#obj li:not(.first){color:var(--dim)}
+#hotbar{position:fixed;left:max(12px,env(safe-area-inset-left,0px));right:calc(max(12px,env(safe-area-inset-right,0px)) + 182px);margin-inline:auto;width:fit-content;max-width:calc(100% - 206px);box-sizing:border-box;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);display:flex;gap:3px;padding:5px;z-index:5;overflow-x:auto;align-items:center}
+.grp{display:flex;gap:3px;padding-right:5px;margin-right:2px;border-right:1px solid var(--line)}
+.grp:last-child{border-right:0;margin-right:0;padding-right:0}
+.slot{position:relative;width:42px;height:42px;flex:none;background:var(--panel2);border:1px solid var(--line);border-radius:5px;cursor:pointer;padding:0;display:grid;place-items:center}
+.slot canvas{width:30px;height:30px}
+.slot .k{position:absolute;left:3px;top:1px;font:500 9px var(--mono);color:var(--dim)}
+.slot .lock{position:absolute;inset:0;display:none;place-items:center;background:#0b0d0cd8;border-radius:5px}
+.slot .lock::after{content:"";width:9px;height:7px;border:1.5px solid #8f978d;border-radius:1px;box-shadow:0 -4px 0 -1px #0b0d0c,0 -5px 0 0 #8f978d}
+.slot.locked .lock{display:grid}
+.slot.poor::after{content:"";position:absolute;right:3px;top:3px;width:5px;height:5px;border-radius:50%;background:var(--bad)}
+.slot.sel{border-color:var(--amber);box-shadow:inset 0 0 0 1px var(--amber),0 0 14px #f2a93b44}
+.slot:hover{border-color:#f2a93b99}
+#tip{position:fixed;z-index:20;pointer-events:none;width:260px;padding:10px 12px;font-size:13px}
+#tip .t{font:700 17px/1.1 var(--disp);letter-spacing:.03em;margin-bottom:4px}
+#tip p{margin:4px 0 8px;color:var(--dim);line-height:1.35}
+.costs{display:flex;flex-wrap:wrap;gap:4px}
+.cost{display:inline-flex;align-items:center;gap:3px;font:500 12px var(--mono);background:#0005;border-radius:4px;padding:2px 5px 2px 3px;font-variant-numeric:tabular-nums}
+.cost img{width:16px;height:16px}
+.cost.no{color:var(--bad)}
+.cost.ok{color:var(--ink)}
+#modebar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 72px);z-index:5;padding:8px 12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;max-width:calc(100% - 24px)}
+#modebar .m{font:700 15px/1 var(--disp);letter-spacing:.08em;text-transform:uppercase}
+#modebar .d{color:var(--dim);font-size:13px}
+#mini{position:fixed;right:max(12px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 12px);width:170px;height:170px;z-index:4;border:1px solid var(--line);border-radius:6px;background:#000;cursor:pointer;image-rendering:pixelated}
+#hover{position:fixed;left:max(12px,env(safe-area-inset-left,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 72px);font:500 12px var(--mono);color:var(--dim);z-index:4;padding:6px 9px;max-width:300px}
+.drawer{position:fixed;left:max(12px,env(safe-area-inset-left,0px));top:var(--topH,66px);width:340px;max-height:calc(100% - 180px);overflow:auto;padding:12px;z-index:6}
+#inspector{position:fixed;right:max(12px,env(safe-area-inset-right,0px));top:var(--topH,66px);width:310px;max-height:calc(100% - 270px);overflow:auto;padding:12px;z-index:6}
+.ititle{font:700 22px/1 var(--disp);letter-spacing:.02em;margin:6px 0 4px}
+.stat{display:inline-flex;align-items:center;gap:6px;font:600 11px var(--body);text-transform:uppercase;letter-spacing:.08em;padding:3px 7px;border-radius:3px;background:#0005}
+.stat::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.s-ok{color:var(--good)}.s-idle{color:var(--warn)}.s-block{color:var(--bad)}.s-nopower{color:var(--blue)}.s-norecipe{color:var(--dim)}
+.sec{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+.sec>.lbl{font:600 11px var(--body);text-transform:uppercase;letter-spacing:.1em;color:var(--dim);margin-bottom:7px}
+.kv{display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:2px 0;align-items:center}
+.kv b{font:500 12px var(--mono);font-variant-numeric:tabular-nums}
+.kv img{vertical-align:-3px}
+.pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));gap:4px}
+.pick button{aspect-ratio:1;max-width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:4px;cursor:pointer;padding:3px;display:grid;place-items:center}
+.pick button img{width:24px;height:24px}
+.pick button.on{border-color:var(--amber);background:#f2a93b22}
+.pick button:hover{border-color:#f2a93baa}
+.slots{display:flex;gap:5px;flex-wrap:wrap}
+.mslot{width:40px;height:40px;border:1px dashed #8f978d88;border-radius:5px;display:grid;place-items:center;background:#0004;cursor:pointer;padding:0}
+.mslot.full{border-style:solid;border-color:var(--line);background:var(--panel2)}
+.mslot img{width:28px;height:28px}
+.recipe{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font:500 12px var(--mono)}
+.recipe .arrow{color:var(--dim)}
+.pbar{height:5px;background:#0007;border-radius:3px;overflow:hidden;margin-top:6px}
+.pbar i{display:block;height:100%;background:var(--amber)}
+.row{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.inv{display:grid;grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:5px}
+.it{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:5px 4px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0}
+.it img{width:28px;height:28px}
+.it b{font:500 12px var(--mono);font-variant-numeric:tabular-nums}
+.it span{font-size:10px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.craft{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0}
+table.st{width:100%;border-collapse:collapse;font-size:13px}
+table.st td{padding:4px 3px;border-bottom:1px solid #ffffff0d;vertical-align:middle}
+table.st td.n{font:500 12px var(--mono);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+table.st th{font:600 10px var(--body);text-transform:uppercase;letter-spacing:.1em;color:var(--dim);text-align:right;padding:0 3px 6px}
+table.st th:first-child{text-align:left}
+table.st img{width:20px;height:20px;vertical-align:middle;margin-right:5px}
+.bp{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:9px;display:flex;flex-direction:column;gap:7px}
+.bp.on{border-color:var(--amber)}
+.bp .top{display:flex;gap:9px;align-items:center}
+.bp .top img{width:72px;height:54px;flex:none;background:#0b0d0c;border-radius:4px;image-rendering:pixelated}
+.bp .nm{font:700 16px/1.1 var(--disp);letter-spacing:.02em;word-break:break-word}
+.bp .meta{font:500 11px var(--mono);color:var(--dim)}
+.bp input,.ta{width:100%;background:#0b0d0c;border:1px solid var(--line);color:var(--ink);border-radius:4px;padding:6px 7px;font:500 13px var(--body);box-sizing:border-box}
+.ta{font:500 11px var(--mono);height:70px;resize:vertical}
+.bplist{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+#modal{position:fixed;inset:0;background:#000a;z-index:30;display:grid;place-items:center;padding:16px}
+.sheet{width:min(1240px,100%);max-height:88vh;overflow:auto;padding:18px 20px}
+.sheet h2{font:800 30px/1 var(--disp);letter-spacing:.03em;text-transform:uppercase;margin:0}
+.sheet .sub{color:var(--dim);margin:6px 0 14px;max-width:70ch}
+.tree{display:flex;gap:14px;overflow-x:auto;padding-bottom:8px}
+.tier{display:flex;flex-direction:column;gap:8px;flex:none;width:224px}
+.tier>.lbl{font:600 11px var(--mono);color:var(--dim);letter-spacing:.06em}
+.tech{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:10px;display:flex;flex-direction:column;gap:7px}
+.tech .nm{font:700 17px/1.05 var(--disp);letter-spacing:.02em;display:flex;justify-content:space-between;gap:6px;align-items:baseline}
+.tech .nm small{font:600 10px var(--body);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+.tech p{margin:0;color:var(--dim);font-size:12.5px;line-height:1.35}
+.tech.done{opacity:.5}.tech.done .nm small{color:var(--good)}
+.tech.locked{opacity:.42}
+.tech.ready .nm small{color:var(--ink)}
+.tech.active{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber) inset}
+.tech.active .nm small{color:var(--amber)}
+.tech .req{font-size:11px;color:var(--dim)}
+.tabs{display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap}
+.tabs .btn.on{border-color:var(--amber);color:var(--amber)}
+.spd{display:flex;gap:3px;padding:6px;align-items:center}
+.spd .btn{padding:6px 8px;font:600 12px var(--mono)}
+.spd .btn.on{border-color:var(--amber);color:var(--amber);background:#f2a93b18}
+.alerts{display:flex;flex-direction:column;gap:5px;margin-top:10px;padding-top:9px;border-top:1px solid var(--line)}
+.al{display:flex;gap:7px;align-items:center;font-size:12.5px;font-weight:600}
+.al::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.al.bad{color:var(--bad)}.al.warn{color:var(--warn)}.al.blue{color:var(--blue)}
+.qtag{font:600 10px var(--mono);color:var(--blue)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
+.cols h3{font:700 15px var(--disp);letter-spacing:.1em;text-transform:uppercase;color:var(--amber);margin:0 0 6px}
+.cols dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:5px 12px;font-size:13px}
+.cols dt{font:500 12px var(--mono);color:var(--ink);white-space:nowrap}
+.cols dd{margin:0;color:var(--dim)}
+.cols p{color:var(--dim);font-size:13px;margin:0 0 8px;line-height:1.45}
+#toasts{position:fixed;top:var(--topH,70px);left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;z-index:25;pointer-events:none}
+.toast{padding:8px 14px;font-weight:600;animation:tin .25s ease-out;text-align:center}
+.toast.big{font:700 20px/1 var(--disp);letter-spacing:.06em;text-transform:uppercase;border-color:var(--amber);color:var(--amber);padding:12px 18px}
+@keyframes tin{from{opacity:0;transform:translateY(-6px)}}
+@media (prefers-reduced-motion:reduce){.toast{animation:none}.bar i{transition:none}}
+@media (max-width:900px){#obj{display:none}.meter{min-width:150px}.menu{margin-left:0}#hotbar{right:max(12px,env(safe-area-inset-right,0px));max-width:calc(100% - 24px);bottom:calc(env(safe-area-inset-bottom,0px) + 190px)}}
+
+/* ---- website shell: account gate and save slots ---- */
+html,body{margin:0}
+[hidden]{display:none!important}
+#gate{position:fixed;inset:0;z-index:40;display:grid;place-items:center;padding:20px 16px;overflow:auto;
+  background:repeating-linear-gradient(0deg,#ffffff06 0 1px,transparent 1px 32px),repeating-linear-gradient(90deg,#ffffff06 0 1px,transparent 1px 32px),radial-gradient(ellipse at 50% 25%,#232b24 0%,#0b0d0c 72%)}
+.gbox{width:min(440px,100%);padding:24px;box-sizing:border-box}
+.gbox.wide{width:min(840px,100%)}
+.glogo{font:800 52px/.9 var(--disp);letter-spacing:.04em;text-transform:uppercase;margin:0}
+.glogo span{color:var(--amber)}
+.gsub{color:var(--dim);margin:10px 0 4px;max-width:52ch;line-height:1.45}
+.gtabs{display:flex;gap:4px;margin:18px 0 4px}
+.gtabs .btn{flex:1;justify-content:center}
+.gtabs .btn.on{border-color:var(--amber);color:var(--amber);background:#f2a93b14}
+.field{display:flex;flex-direction:column;gap:5px;margin-top:12px}
+.field label{font:600 11px var(--body);text-transform:uppercase;letter-spacing:.1em;color:var(--dim)}
+.field input{background:#0b0d0c;border:1px solid var(--line);color:var(--ink);border-radius:5px;padding:10px 11px;font:500 15px var(--body);box-sizing:border-box;width:100%}
+.field input:focus{outline:2px solid var(--amber);outline-offset:0;border-color:transparent}
+.field small{color:var(--dim);font-size:12px}
+.gerr{color:var(--bad);font-size:13px;min-height:18px;margin-top:10px}
+.gbtn{width:100%;justify-content:center;padding:11px;font-size:15px;margin-top:6px}
+.gor{display:flex;align-items:center;gap:10px;color:var(--dim);font-size:12px;margin:14px 0 10px;text-transform:uppercase;letter-spacing:.1em}
+.gor::before,.gor::after{content:"";flex:1;height:1px;background:var(--line)}
+.ghead{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.gwho{font:500 12px var(--mono);color:var(--dim)}
+.slots3{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:18px}
+.scard{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:8px;min-height:170px;min-width:0}
+.scard.empty{border-style:dashed;background:transparent}
+.scard .sn{font:700 13px var(--disp);letter-spacing:.14em;text-transform:uppercase;color:var(--amber)}
+.scard .st2{font:700 22px/1.05 var(--disp);letter-spacing:.02em}
+.scard .sm2{font:500 12px var(--mono);color:var(--dim);line-height:1.5}
+.scard .row{margin-top:auto}
+.gnote{color:var(--dim);font-size:12.5px;margin:14px 0 0;line-height:1.45}
+
+</style>
+
+</head>
+<body>
+<div id="gate" hidden><div class="gbox panel" id="gbox"></div></div>
+<canvas id="cv"></canvas>
+<div id="top">
+  <div class="panel brand">Foundry<span>Line</span></div>
+  <div class="panel meter"><div class="lab"><span>Power grid</span><b id="pwTxt">–</b></div><div class="bar"><i id="pwBar"></i></div><div class="bar thin" id="accWrap" hidden><i id="accBar" style="background:var(--blue)"></i></div></div>
+  <div class="panel meter" style="min-width:150px"><div class="lab"><span id="skyName">Day 1</span><b id="skyTxt">06:00</b></div><div class="bar thin"><i id="skyBar" style="background:var(--warn)"></i></div></div>
+  <div class="panel meter"><div class="lab"><span id="rsName">Research</span><b id="rsTxt">None active</b></div><div class="bar"><i id="rsBar" style="background:var(--amber)"></i></div></div>
+  <div class="panel spd" id="spd" title="Game speed (, and .)">
+    <button class="btn" data-act="speed" data-n="0" aria-label="Pause">II</button>
+    <button class="btn on" data-act="speed" data-n="1">1×</button>
+    <button class="btn" data-act="speed" data-n="2">2×</button>
+    <button class="btn" data-act="speed" data-n="4">4×</button>
+  </div>
+  <div class="panel menu">
+    <button class="btn" data-act="inv">Inventory <kbd>I</kbd></button>
+    <button class="btn" data-act="tech">Research <kbd>T</kbd></button>
+    <button class="btn" data-act="stats">Production <kbd>P</kbd></button>
+    <button class="btn" data-act="lib">Blueprints <kbd>B</kbd></button>
+    <button class="btn" data-act="acct" id="acctBtn">Account</button>
+    <button class="btn" data-act="help">Help <kbd>H</kbd></button>
+  </div>
+</div>
+<div id="obj" class="panel"></div>
+<div id="modebar" class="panel" hidden></div>
+<div id="hotbar" class="panel"></div>
+<div id="tip" class="panel" hidden></div>
+<canvas id="mini" width="240" height="240"></canvas>
+<div id="hover" class="panel" hidden></div>
+<aside id="inspector" class="panel" hidden></aside>
+<aside id="invPanel" class="panel drawer" hidden></aside>
+<aside id="statsPanel" class="panel drawer" hidden></aside>
+<aside id="libPanel" class="panel drawer" hidden></aside>
+<div id="modal" hidden><div class="sheet panel" id="sheet"></div></div>
+<div id="toasts"></div>
+
+<script>
+'use strict';
+// ================== CONSTANTS & DATA ==================
+const T=32, W=240, H=240, HX=120, HY=120, GAP=0.25, CH=16, DAY=600;
+const DX=[0,1,0,-1], DY=[-1,0,1,0];
+const SAVE_KEY='foundryline_save_v2', BP_KEY='foundryline_blueprints_v1';
+
+const ITEMS={
+  iron_ore:{name:'Iron Ore',color:'#8fa3b8',shape:'ore'},
+  copper_ore:{name:'Copper Ore',color:'#d47a45',shape:'ore'},
+  coal:{name:'Coal',color:'#26262b',shape:'ore',edge:'#6a6a74'},
+  stone:{name:'Stone',color:'#b3a386',shape:'ore'},
+  quartz:{name:'Quartz',color:'#ddd6ff',shape:'crystal'},
+  crude_oil:{name:'Crude Oil',color:'#2a2420',shape:'barrel'},
+  uranium_ore:{name:'Uranium Ore',color:'#5fd35a',shape:'ore',edge:'#1f4d1d'},
+  iron_plate:{name:'Iron Plate',color:'#bccad8',shape:'plate'},
+  copper_plate:{name:'Copper Plate',color:'#e8935a',shape:'plate'},
+  brick:{name:'Brick',color:'#b5563a',shape:'brick'},
+  steel:{name:'Steel',color:'#8593a3',shape:'ingot'},
+  silicon:{name:'Silicon',color:'#6f74a0',shape:'wafer'},
+  gear:{name:'Gear',color:'#aab6c2',shape:'gear'},
+  wire:{name:'Copper Wire',color:'#e8935a',shape:'wire'},
+  circuit:{name:'Circuit',color:'#3fae5a',shape:'chip'},
+  beam:{name:'Steel Beam',color:'#8593a3',shape:'beam'},
+  concrete:{name:'Concrete',color:'#9a9b96',shape:'block'},
+  motor:{name:'Motor',color:'#4b7bd1',shape:'motor'},
+  adv_circuit:{name:'Adv. Circuit',color:'#c84040',shape:'chip'},
+  plastic:{name:'Plastic',color:'#e9edf2',shape:'plastic'},
+  sulfur:{name:'Sulfur',color:'#e8d43a',shape:'crystal',edge:'#7a6a10'},
+  solid_fuel:{name:'Solid Fuel',color:'#c26a2a',shape:'ingot'},
+  processor:{name:'Processor',color:'#7a4bd1',shape:'chip'},
+  frame:{name:'Frame',color:'#d4a23a',shape:'frame'},
+  battery:{name:'Battery',color:'#3a3f48',shape:'battery'},
+  lds:{name:'Low Density Structure',color:'#b7c3cf',shape:'lds'},
+  rocket_fuel:{name:'Rocket Fuel',color:'#d9534a',shape:'canister'},
+  uranium:{name:'Enriched Uranium',color:'#7dff6a',shape:'pellet'},
+  fuel_rod:{name:'Fuel Rod',color:'#5fd35a',shape:'rod'},
+  speed_module:{name:'Speed Module',color:'#4a8ef0',shape:'module'},
+  speed_module2:{name:'Speed Module II',color:'#2a64d0',shape:'module',tier:2},
+  prod_module:{name:'Productivity Module',color:'#e04848',shape:'module'},
+  prod_module2:{name:'Productivity Module II',color:'#b82828',shape:'module',tier:2},
+  sci_red:{name:'Red Science',color:'#e04848',shape:'flask'},
+  sci_green:{name:'Green Science',color:'#4ccf5a',shape:'flask'},
+  sci_blue:{name:'Blue Science',color:'#4a8ef0',shape:'flask'},
+  sci_purple:{name:'Purple Science',color:'#b066f0',shape:'flask'},
+  sci_yellow:{name:'Yellow Science',color:'#f2d23b',shape:'flask'},
+  sci_white:{name:'White Science',color:'#f4f6fa',shape:'flask'},
+  rocket_part:{name:'Rocket Part',color:'#e8e8ee',shape:'rocket'},
+};
+const ORE_ITEM=[null,'iron_ore','copper_ore','coal','stone','quartz','crude_oil','uranium_ore'];
+const ORE_NAME=[null,'Iron ore','Copper ore','Coal','Stone','Quartz','Oil seep','Uranium ore'];
+const ORE_COL=[null,
+  {c:'#8fa3b8',dark:'#3b4654',hi:'#dfe8f2',tint:'rgba(120,150,190,.10)',mini:'#6b7d90'},
+  {c:'#d47a45',dark:'#5c2b14',hi:'#ffc79a',tint:'rgba(212,122,69,.12)',mini:'#9a5530'},
+  {c:'#202024',dark:'#060607',hi:'#5d5d68',tint:'rgba(0,0,0,.22)',mini:'#3a3a42'},
+  {c:'#b3a386',dark:'#4f4535',hi:'#eee2c8',tint:'rgba(179,163,134,.10)',mini:'#857860'},
+  {c:'#ddd6ff',dark:'#5c5585',hi:'#ffffff',tint:'rgba(200,190,255,.12)',mini:'#a59ed0'},
+  {c:'#0e0c0b',dark:'#000000',hi:'#8a7cff',tint:'rgba(0,0,0,.3)',mini:'#2a1f3a'},
+  {c:'#5fd35a',dark:'#1d4a1b',hi:'#d5ffcc',tint:'rgba(95,211,90,.12)',mini:'#3e9a3a'},
+];
+const FUEL={coal:150,solid_fuel:900,fuel_rod:60000};
+
+const SMELT={
+  iron_ore:{out:'iron_plate',n:1,t:2.4},
+  copper_ore:{out:'copper_plate',n:1,t:2.4},
+  stone:{out:'brick',n:2,t:3.2},
+  quartz:{out:'silicon',n:1,t:4,tech:'quartz'},
+  iron_plate:{out:'steel',n:3,t:7,tech:'steel'},
+};
+const RECIPES={
+  gear:{in:{iron_plate:2},out:1,t:1,tech:'automation'},
+  wire:{in:{copper_plate:1},out:2,t:0.6,tech:'automation'},
+  circuit:{in:{iron_plate:1,wire:3},out:1,t:1.6,tech:'electronics'},
+  sci_red:{in:{copper_plate:1,gear:1},out:1,t:5,tech:'sci1'},
+  beam:{in:{steel:2},out:1,t:2.5,tech:'steel'},
+  sci_green:{in:{circuit:1,beam:1},out:1,t:6,tech:'sci2'},
+  motor:{in:{gear:2,circuit:1,steel:1},out:1,t:4,tech:'motors'},
+  adv_circuit:{in:{circuit:2,wire:4,silicon:1},out:1,t:6,tech:'quartz'},
+  sci_blue:{in:{adv_circuit:1,motor:1,beam:1},out:2,t:12,tech:'sci3'},
+  concrete:{in:{brick:3,iron_plate:1},out:4,t:4,tech:'structures'},
+  frame:{in:{beam:2,concrete:4},out:1,t:6,tech:'structures'},
+  plastic:{in:{crude_oil:2,coal:1},out:2,t:3,tech:'oil',cat:'refine'},
+  sulfur:{in:{crude_oil:2},out:2,t:3,tech:'oil',cat:'refine'},
+  solid_fuel:{in:{crude_oil:3},out:2,t:4,tech:'oil',cat:'refine'},
+  processor:{in:{adv_circuit:2,plastic:2,sulfur:1},out:1,t:10,tech:'processors'},
+  sci_purple:{in:{processor:1,frame:1,motor:1},out:3,t:15,tech:'sci4'},
+  speed_module:{in:{adv_circuit:4,circuit:4},out:1,t:15,tech:'modules'},
+  prod_module:{in:{adv_circuit:5,circuit:5},out:1,t:15,tech:'modules'},
+  battery:{in:{sulfur:1,iron_plate:1,copper_plate:1},out:1,t:4,tech:'accumulator',cat:'refine'},
+  lds:{in:{steel:2,copper_plate:4,plastic:2},out:1,t:12,tech:'lds'},
+  sci_yellow:{in:{lds:1,battery:1,processor:1},out:3,t:20,tech:'sci5'},
+  speed_module2:{in:{speed_module:4,processor:4},out:1,t:30,tech:'modules2'},
+  prod_module2:{in:{prod_module:4,processor:4},out:1,t:30,tech:'modules2'},
+  uranium:{in:{uranium_ore:10},out:1,t:12,tech:'nuclear',cat:'refine'},
+  fuel_rod:{in:{uranium:1,steel:4},out:1,t:15,tech:'nuclear'},
+  rocket_fuel:{in:{solid_fuel:6},out:1,t:15,tech:'rocket_fuel'},
+  sci_white:{in:{rocket_fuel:1,lds:1,battery:1},out:3,t:25,tech:'sci6'},
+  rocket_part:{in:{lds:2,rocket_fuel:2,processor:2},out:1,t:30,tech:'rocketry'},
+};
+const HANDCRAFT=['gear','wire','circuit'];
+const MODS={speed_module:{spd:.2,pow:.4,prod:0},speed_module2:{spd:.35,pow:.6,prod:0},prod_module:{spd:-.1,pow:.4,prod:.08},prod_module2:{spd:-.15,pow:.7,prod:.14}};
+
+const BUILD={
+  belt:{name:'Conveyor',cat:'belt',cost:{iron_plate:1},speed:1.6,rail:'#d8a23a',chev:'rgba(216,162,58,.5)',next:'belt2',desc:'Moves 6 items a second. Click and drag to lay a line; corners follow your mouse.'},
+  belt2:{name:'Fast Conveyor',cat:'belt',cost:{iron_plate:1,gear:1},speed:3.2,rail:'#e0564a',chev:'rgba(224,86,74,.55)',tech:'belt2',next:'belt3',desc:'Twice the throughput. Drag over old belts to upgrade them in place.'},
+  belt3:{name:'Express Conveyor',cat:'belt',cost:{gear:2,steel:1},speed:5.2,rail:'#4aa0e8',chev:'rgba(74,160,232,.6)',tech:'belt3',next:'belt4',desc:'Over three times the basic belt.'},
+  belt4:{name:'Hyper Conveyor',cat:'belt',cost:{gear:2,steel:1,plastic:2},speed:8,rail:'#c070f0',chev:'rgba(192,112,240,.6)',tech:'belt4',desc:'The fastest belt: 32 items a second.'},
+  splitter:{name:'Splitter',cat:'logi',cost:{iron_plate:5,gear:2},tech:'logistics',desc:'Deals items out left, front and right in turn.'},
+  filter:{name:'Sorter',cat:'logi',cost:{iron_plate:6,gear:2,copper_plate:2},tech:'logistics',desc:'Your chosen item exits to the left. Everything else goes straight through.'},
+  chest:{name:'Buffer Crate',cat:'logi',cost:{iron_plate:8},desc:'Holds 400 items and feeds them out the front. Smooths bursty supply.'},
+  tunnel:{name:'Belt Tunnel',cat:'logi',cost:{iron_plate:10,gear:5},tech:'logistics',desc:'Place two facing the same way, up to 6 tiles apart. Items dive under whatever sits between them.'},
+  depot:{name:'Supply Depot',cat:'logi',cost:{iron_plate:10,circuit:5},tech:'logistics',desc:'Pick an item. It pulls that item out of your inventory and onto a belt, 10 a second.'},
+  miner:{name:'Mining Drill',cat:'miner',cost:{iron_plate:10,copper_plate:3},power:3,rate:0.5,slots:1,ores:[1,2,3,4,5,7],next:'miner2',desc:'Place on ore. Mines it forever and pushes it out the front.'},
+  miner2:{name:'Drill Mk2',cat:'miner',cost:{steel:8,circuit:6,motor:2},power:6,rate:1.2,slots:2,ores:[1,2,3,4,5,7],tech:'miner2',desc:'Mines 2.4× faster with two module slots.'},
+  pump:{name:'Pumpjack',cat:'miner',cost:{steel:10,gear:10,circuit:5},power:5,rate:0.8,slots:2,ores:[6],tech:'oil',desc:'Place on a dark oil seep. Pumps barrels of crude oil.'},
+  furnace:{name:'Smelter',cat:'smelter',cost:{brick:6,iron_plate:2},power:4,spd:1,slots:1,next:'furnace2',desc:'Smelts ore into plates. Picks its recipe from the first item it gets.'},
+  furnace2:{name:'Arc Furnace',cat:'smelter',cost:{steel:8,adv_circuit:3,brick:10},power:9,spd:2.2,slots:2,tech:'furnace2',desc:'Smelts 2.2× faster with two module slots.'},
+  assembler:{name:'Assembler',cat:'crafter',rc:'asm',cost:{iron_plate:12,copper_plate:6},power:5,spd:1,slots:1,tech:'automation',next:'assembler2',desc:'Choose a recipe, then belt ingredients in from any side. Output leaves the front.'},
+  assembler2:{name:'Assembler Mk2',cat:'crafter',rc:'asm',cost:{steel:6,circuit:6,gear:6},power:10,spd:2.2,slots:2,tech:'assembler2',next:'assembler3',desc:'Crafts 2.2× faster with two module slots.'},
+  assembler3:{name:'Assembler Mk3',cat:'crafter',rc:'asm',cost:{speed_module:1,processor:4,frame:2},power:18,spd:4,slots:4,tech:'assembler3',desc:'Crafts 4× faster with four module slots.'},
+  refinery:{name:'Refinery',cat:'crafter',rc:'refine',cost:{steel:15,gear:10,circuit:10,brick:10},power:12,spd:1,slots:2,tech:'oil',desc:'Chemical recipes: plastic, sulfur, solid fuel, batteries and uranium.'},
+  generator:{name:'Coal Generator',cat:'power',cost:{iron_plate:15,copper_plate:5,brick:5},cap:30,fuels:['coal','solid_fuel'],fmax:20,desc:'Burns coal or solid fuel. Only burns what the grid needs.'},
+  wind:{name:'Wind Turbine',cat:'power',cost:{iron_plate:20,gear:10,copper_plate:10},cap:12,tech:'wind',desc:'Free power that rises and falls with the wind.'},
+  solar:{name:'Solar Array',cat:'power',cost:{silicon:5,steel:3,copper_plate:5},cap:14,tech:'solar',desc:'Free power during the day. Nothing at night.'},
+  accumulator:{name:'Accumulator',cat:'power',cost:{battery:5,iron_plate:4},store:4000,rate:25,tech:'accumulator',desc:'Stores spare wind and solar power, then releases it when the grid runs short.'},
+  reactor:{name:'Nuclear Reactor',cat:'power',cost:{concrete:50,steel:50,processor:20,frame:10},cap:300,fuels:['fuel_rod'],fmax:4,tech:'nuclear',desc:'9 MW from fuel rods. One rod lasts over three minutes at full load.'},
+};
+const TUN_RANGE=6;
+const GROUPS=[['belt','belt2','belt3','belt4'],['tunnel','splitter','filter','chest','depot'],['miner','miner2','pump'],['furnace','furnace2'],['assembler','assembler2','assembler3'],['refinery'],['generator','wind','solar','accumulator','reactor']];
+const HOT=GROUPS.flat();
+const TOOLS=[{id:'copy',name:'Copy area',key:'C',desc:'Drag a box over buildings to save them as a blueprint, recipes included. Then click to paste copies.'},
+  {id:'upgrade',name:'Upgrade area',key:'U',desc:'Drag a box to upgrade every building inside to its next tier. Pays the difference.'},
+  {id:'clear',name:'Clear area',key:'X',desc:'Drag a box to remove everything inside. Full refund, items included.'},
+  {id:'lib',name:'Blueprint library',key:'B',desc:'Your saved blueprints. Paste, rename, export or import them.'}];
+
+const TECH=[
+  {id:'automation',name:'Automation',cost:{iron_plate:40,copper_plate:30},req:[],desc:'Assembler, plus gear and wire recipes.'},
+  {id:'logistics',name:'Logistics',cost:{gear:30,iron_plate:40},req:['automation'],desc:'Belt Tunnel, Splitter, Sorter and Supply Depot.'},
+  {id:'electronics',name:'Electronics',cost:{wire:60,gear:20},req:['automation'],desc:'Circuit recipe: 1 iron plate + 3 wire.'},
+  {id:'wind',name:'Wind Power',cost:{gear:40,copper_plate:60},req:['automation'],desc:'Wind turbines. No fuel, but the output drifts.'},
+  {id:'sci1',name:'Research I',cost:{circuit:25,gear:25},req:['electronics'],desc:'Red science packs. Most research costs science from here on.'},
+  {id:'belt2',name:'Fast Conveyors',cost:{sci_red:40},req:['sci1','logistics'],desc:'Belts with double throughput.'},
+  {id:'mining1',name:'Drill Bits I',cost:{sci_red:50},req:['sci1'],desc:'+25% speed for every drill and pumpjack.'},
+  {id:'steel',name:'Steel Processing',cost:{sci_red:75},req:['sci1'],desc:'Smelt 3 iron plates into steel. Steel beam recipe.'},
+  {id:'miner2',name:'Drill Mk2',cost:{sci_red:120},req:['steel'],desc:'A 2.4× faster drill.'},
+  {id:'sci2',name:'Research II',cost:{sci_red:100,beam:20},req:['steel'],desc:'Green science packs: circuit + steel beam.'},
+  {id:'smelt1',name:'Hot Smelting',cost:{sci_red:80,sci_green:40},req:['sci2'],desc:'+50% smelter speed.'},
+  {id:'quartz',name:'Silicon',cost:{sci_green:80},req:['sci2'],desc:'Smelt quartz into silicon. Advanced circuit recipe.'},
+  {id:'motors',name:'Motors',cost:{sci_red:80,sci_green:80},req:['sci2'],desc:'Motor recipe: gears, circuit and steel.'},
+  {id:'assembler2',name:'Assembler Mk2',cost:{sci_green:120},req:['sci2'],desc:'A 2.2× faster assembler with two module slots.'},
+  {id:'solar',name:'Solar Energy',cost:{sci_green:100},req:['quartz'],desc:'Solar arrays. Strong at noon, dead at night.'},
+  {id:'furnace2',name:'Arc Furnace',cost:{sci_green:150,sci_red:100},req:['smelt1','quartz'],desc:'A 2.2× faster smelter.'},
+  {id:'sci3',name:'Research III',cost:{sci_green:200},req:['quartz','motors'],desc:'Blue science packs. Each craft makes two.'},
+  {id:'belt3',name:'Express Conveyors',cost:{sci_blue:60},req:['sci3','belt2'],desc:'Even faster belts.'},
+  {id:'mining2',name:'Drill Bits II',cost:{sci_blue:100},req:['sci3','mining1'],desc:'+50% more drill speed.'},
+  {id:'oil',name:'Oil Processing',cost:{sci_blue:120},req:['sci3'],desc:'Pumpjack and Refinery. Plastic, sulfur and solid fuel.'},
+  {id:'structures',name:'Structures',cost:{sci_blue:150},req:['sci3'],desc:'Concrete and frame recipes.'},
+  {id:'modules',name:'Modules',cost:{sci_blue:150},req:['sci3'],desc:'Speed and productivity modules for machine slots.'},
+  {id:'processors',name:'Processors',cost:{sci_blue:200},req:['oil'],desc:'Processor recipe: advanced circuits, plastic and sulfur.'},
+  {id:'sci4',name:'Research IV',cost:{sci_blue:250,frame:20},req:['structures','processors'],desc:'Purple science packs. Each craft makes three.'},
+  {id:'smelt2',name:'Plasma Smelting',cost:{sci_purple:100},req:['sci4','smelt1'],desc:'+75% more smelter speed.'},
+  {id:'accumulator',name:'Batteries',cost:{sci_purple:80},req:['sci4'],desc:'Battery recipe and the Accumulator.'},
+  {id:'assembler3',name:'Assembler Mk3',cost:{sci_purple:150},req:['sci4','assembler2','modules'],desc:'A 4× faster assembler with four module slots.'},
+  {id:'lds',name:'Light Alloys',cost:{sci_purple:150},req:['sci4'],desc:'Low density structure recipe.'},
+  {id:'sci5',name:'Research V',cost:{sci_purple:250},req:['lds','accumulator'],desc:'Yellow science packs. Each craft makes three.'},
+  {id:'belt4',name:'Hyper Conveyors',cost:{sci_yellow:100},req:['sci5','belt3'],desc:'The fastest belts.'},
+  {id:'modules2',name:'Modules II',cost:{sci_yellow:150},req:['sci5','modules'],desc:'Speed Module II and Productivity Module II.'},
+  {id:'mining3',name:'Drill Bits III',cost:{sci_yellow:200},req:['sci5','mining2'],desc:'+75% more drill speed.'},
+  {id:'nuclear',name:'Nuclear Power',cost:{sci_yellow:200},req:['sci5'],desc:'Uranium enrichment, fuel rods and the 9 MW reactor.'},
+  {id:'rocket_fuel',name:'Rocket Fuel',cost:{sci_yellow:150},req:['sci5'],desc:'Rocket fuel recipe from solid fuel.'},
+  {id:'sci6',name:'Research VI',cost:{sci_yellow:300},req:['rocket_fuel','nuclear'],desc:'White science packs. Each craft makes three.'},
+  {id:'rocketry',name:'Rocketry',cost:{sci_white:300},req:['sci6'],desc:'Rocket part recipe.'},
+  {id:'launch',name:'Orbital Launch',cost:{rocket_part:100},req:['rocketry'],desc:'Stack 100 rocket parts in the Hub and launch. You win.'},
+  {id:'rep_mine',name:'Mining Productivity',cost:{sci_white:80},rep:true,req:['sci6'],desc:'+10% bonus output from drills per level. Repeatable.'},
+  {id:'rep_asm',name:'Assembly Throughput',cost:{sci_white:80},rep:true,req:['sci6'],desc:'+10% speed for assemblers and refineries per level. Repeatable.'},
+  {id:'rep_smelt',name:'Smelting Throughput',cost:{sci_white:80},rep:true,req:['sci6'],desc:'+10% smelter speed per level. Repeatable.'},
+  {id:'rep_power',name:'Grid Efficiency',cost:{sci_white:100},rep:true,req:['sci6'],desc:'-5% power use for every machine per level, down to half. Repeatable.'},
+];
+const TECH_BY={}; TECH.forEach(t=>TECH_BY[t.id]=t);
+(function depth(){const d={};const f=id=>d[id]??(d[id]=1+Math.max(0,...TECH_BY[id].req.map(f)));TECH.forEach(t=>t.tier=f(t.id));})();
+
+// ================== STATE ==================
+let seed, ore, ents, grid, inv, techs, techLv, active, paid, delivered, made, playTime, hub;
+let power={demand:0,supply:0,sat:1,src:{},stored:0,storeCap:0}, buckets=[], curMade={}, curDel={}, bucketT=0, rBudget=0;
+let won=false, launch=null, genAuto=false;
+const cam={x:HX*T+T/2,y:HY*T+T/2}; let zoom=1;
+let sel=null, rot=1, pipRecipe=null, pipFilter=null, pipMods=null, inspected=null;
+let tool=null, bpSel=null, bpRot=0, blueprints=[];
+let particles=[];
+const keys=new Set();
+const mouse={x:0,y:0,in:false,down:false,btn:-1};
+let drag=null, mining=null, wind=0.6, sun=1, simSpeed=1, rq=[];
+
+// ================== UTIL ==================
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function hash2(x,y){let h=(x*374761393+y*668265263+seed*69069)|0;h=Math.imul(h^(h>>>13),1274126177);return((h^(h>>>16))>>>0)/4294967296}
+function vnoise(x,y){const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi;const s=v=>v*v*(3-2*v);const a=hash2(xi,yi),b=hash2(xi+1,yi),c=hash2(xi,yi+1),d=hash2(xi+1,yi+1);const u=s(xf),v=s(yf);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v}
+const idx=(x,y)=>y*W+x, inb=(x,y)=>x>=0&&y>=0&&x<W&&y<H, at=(x,y)=>inb(x,y)?grid[idx(x,y)]:null;
+const isBelt=t=>BUILD[t]&&BUILD[t].cat==='belt';
+const has=id=>techs.has(id);
+const lv=id=>techLv[id]||0;
+const N=id=>ITEMS[id]?ITEMS[id].name:id;
+function hexRgb(h){const n=parseInt(h.slice(1),16);return[n>>16&255,n>>8&255,n&255]}
+function shade(h,a){const[r,g,b]=hexRgb(h);const t=a<0?0:255,p=Math.abs(a);return`rgb(${Math.round(r+(t-r)*p)},${Math.round(g+(t-g)*p)},${Math.round(b+(t-b)*p)})`}
+function mix(h1,h2,t){const a=hexRgb(h1),b=hexRgb(h2);return`rgb(${a.map((v,i)=>Math.round(v+(b[i]-v)*t)).join(',')})`}
+function fmt(n){n=Math.floor(n);return n>=1e6?(n/1e6).toFixed(1)+'M':n>=100000?(n/1000).toFixed(0)+'k':n>=10000?(n/1000).toFixed(1)+'k':String(n)}
+function fmtW(units){const kw=units*30;return kw>=1000?(kw/1000).toFixed(kw>=10000?0:1)+' MW':Math.round(kw)+' kW'}
+function fmtTime(s){s=Math.floor(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return(h?h+'h ':'')+m+'m '+x+'s'}
+const canAfford=c=>Object.keys(c).every(k=>(inv[k]||0)>=c[k]);
+function pay(c){for(const k in c)inv[k]-=c[k]}
+function refund(c){for(const k in c)inv[k]=(inv[k]||0)+c[k]}
+function addInv(id,n=1){inv[id]=(inv[id]||0)+n}
+function addMade(id,n=1){made[id]=(made[id]||0)+n;curMade[id]=(curMade[id]||0)+n}
+const unlockedB=t=>!BUILD[t].tech||has(BUILD[t].tech);
+const unlockedR=r=>!RECIPES[r].tech||has(RECIPES[r].tech);
+const recipeCat=r=>RECIPES[r].cat||'asm';
+function sumCost(list){const c={};list.forEach(t=>{const b=BUILD[t];for(const k in b.cost)c[k]=(c[k]||0)+b.cost[k]});return c}
+function costOf(t){if(!t.rep)return t.cost;const m=Math.pow(1.6,lv(t.id));const c={};for(const k in t.cost)c[k]=Math.round(t.cost[k]*m);return c}
+
+// ================== AUDIO ==================
+let actx=null, muted=false;
+function blip(f=520,d=0.05,type='square',v=0.03){if(muted)return;try{if(!actx)actx=new(window.AudioContext||window.webkitAudioContext)();const o=actx.createOscillator(),g=actx.createGain();o.type=type;o.frequency.value=f;g.gain.setValueAtTime(v,actx.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,actx.currentTime+d);o.connect(g).connect(actx.destination);o.start();o.stop(actx.currentTime+d+0.02)}catch(e){}}
+function chord(){[392,494,587,784].forEach((f,i)=>setTimeout(()=>blip(f,0.25,'triangle',0.05),i*70))}
+
+// ================== WORLD ==================
+function genWorld(){
+  ore=new Uint8Array(W*H);const R=mulberry(seed);
+  const blob=(type,cx,cy,r)=>{for(let y=Math.floor(cy-r-3);y<=cy+r+3;y++)for(let x=Math.floor(cx-r-3);x<=cx+r+3;x++){if(!inb(x,y))continue;const d=Math.hypot(x-cx,y-cy)/r+(vnoise(x/3.1+type*17,y/3.1)-0.5)*0.7;if(d<1&&!ore[idx(x,y)])ore[idx(x,y)]=type}};
+  const near=(type,d,r)=>{const a=R()*Math.PI*2;blob(type,HX+Math.cos(a)*d,HY+Math.sin(a)*d,r)};
+  const a0=R()*Math.PI*2;
+  [[1,11],[2,12],[3,10],[4,13]].forEach(([t,d],i)=>{const a=a0+i*Math.PI/2+(R()-.5)*.5;blob(t,HX+Math.cos(a)*d,HY+Math.sin(a)*d,4.3+R()*1.2)});
+  near(1,26,6);near(2,27,6);near(3,25,4.5);near(4,28,4.5);near(5,33,4.8);near(6,40,2.8);near(6,46,2.6);near(7,58,4.2);near(1,40,7);near(2,42,7);
+  for(let i=0;i<120;i++){const cx=8+R()*(W-16),cy=8+R()*(H-16),dd=Math.hypot(cx-HX,cy-HY);if(dd<26)continue;
+    let t=1+Math.floor(R()*4),r=3+R()*5+dd*0.025;const q=R();
+    if(dd>40&&q<0.2)t=5;else if(dd>40&&q<0.34){t=6;r=2+R()*1.6}else if(dd>55&&q<0.42)t=7;
+    blob(t,cx,cy,r)}
+  for(let y=HY-2;y<=HY+2;y++)for(let x=HX-2;x<=HX+2;x++)ore[idx(x,y)]=0;
+  chunkCache.clear();
+}
+function mkEnt(type,x,y,dir){
+  const e={type,x,y,dir,prog:0,working:false,st:'idle',anim:Math.random()*6};
+  if(isBelt(type))e.items=[];else{e.out=[];e.inb={};e.buf=[];e.heat=0;e.rr=0;e.cd=0;e.crafting=false;e.mods=[];e.ms={spd:0,pow:0,prod:0};e.pb=0}
+  if(BUILD[type].fuels){e.fq=[];e.energy=0;e.load=0}
+  if(type==='accumulator')e.charge=0;
+  if(type==='tunnel'){e.tq=[];e.role='in';e.pair=null}
+  ents.push(e);grid[idx(x,y)]=e;return e;
+}
+function makeHub(){
+  hub={type:'hub',x:HX,y:HY,dir:0,pulse:0,rot:0,lastItem:null,st:'ok'};
+  ents.push(hub);for(let y=HY-1;y<=HY+1;y++)for(let x=HX-1;x<=HX+1;x++)grid[idx(x,y)]=hub;
+}
+function newGame(){
+  seed=(Math.random()*1e9)|0;
+  ents=[];grid=new Array(W*H).fill(null);
+  inv={iron_plate:140,copper_plate:60,brick:50,coal:30};
+  techs=new Set();techLv={};active=null;rq=[];paid={};delivered={};made={};playTime=0;won=false;launch=null;genAuto=false;
+  buckets=[];curMade={};curDel={};
+  genWorld();makeHub();
+  cam.x=HX*T+T/2;cam.y=HY*T+T/2;zoom=1;
+}
+function calcMods(e){const s={spd:0,pow:0,prod:0};(e.mods||[]).forEach(m=>{const d=MODS[m];s.spd+=d.spd;s.pow+=d.pow;s.prod+=d.prod});e.ms=s}
+
+// ================== ACCEPT / LOGIC ==================
+function beltAccept(e,id,dir,p0){
+  if(dir===(e.dir+2)%4)return false;
+  let p;
+  if(dir===e.dir)p=Math.max(0,Math.min(p0||0,0.2));
+  else{const b=at(e.x-DX[e.dir],e.y-DY[e.dir]);p=(b&&isBelt(b.type)&&b.dir===e.dir)?0.5:0}
+  const its=e.items;
+  for(let i=0;i<its.length;i++)if(Math.abs(its[i].p-p)<GAP)return false;
+  let i=0;while(i<its.length&&its[i].p>p)i++;
+  its.splice(i,0,{id,p});return true;
+}
+function crafterAccept(e,id){
+  if(!e.recipe)return false;const need=RECIPES[e.recipe].in[id];if(!need)return false;
+  if((e.inb[id]||0)>=need*2+1)return false;e.inb[id]=(e.inb[id]||0)+1;return true;
+}
+function fuelAccept(e,id){const b=BUILD[e.type];if(!b.fuels.includes(id)||e.fq.length>=b.fmax)return false;e.fq.push(id);if(e.type==='generator')genAuto=true;return true}
+function smeltAccept(e,id){const r=SMELT[id];if(!r||(r.tech&&!has(r.tech)))return false;
+  if(e.rin!==id){if((e.inb[e.rin]||0)>0||e.crafting)return false;e.inb={};e.rin=id}
+  if((e.inb[id]||0)>=r.n*3)return false;e.inb[id]=(e.inb[id]||0)+1;return true}
+const ACC={
+  belt:beltAccept,belt2:beltAccept,belt3:beltAccept,belt4:beltAccept,
+  furnace:smeltAccept,furnace2:smeltAccept,
+  assembler:crafterAccept,assembler2:crafterAccept,assembler3:crafterAccept,refinery:crafterAccept,
+  splitter(e,id){if(e.buf.length>=2)return false;e.buf.push(id);return true},
+  filter(e,id){if(e.buf.length>=1)return false;e.buf.push(id);return true},
+  chest(e,id){if(e.buf.length>=400)return false;e.buf.push(id);return true},
+  generator:fuelAccept,reactor:fuelAccept,
+  tunnel(e,id,dir){if(e.role!=='in'||!e.pair||dir===(e.dir+2)%4||e.tq.length>=40)return false;
+    const tt=(Math.abs(e.pair.x-e.x)+Math.abs(e.pair.y-e.y))/8,last=e.tq[e.tq.length-1];if(last&&last.t>tt-0.03)return false;e.tq.push({id,t:tt});return true},
+  hub(e,id){addInv(id);delivered[id]=(delivered[id]||0)+1;curDel[id]=(curDel[id]||0)+1;e.pulse=1;e.lastItem=id;return true},
+};
+function accept(t,id,dir,p){const f=ACC[t.type];return f?f(t,id,dir,p||0):false}
+function pushOut(e){if(!e.out.length)return false;const t=at(e.x+DX[e.dir],e.y+DY[e.dir]);if(t&&t!==e&&accept(t,e.out[0],e.dir,0)){e.out.shift();return true}return false}
+
+function updBelt(e,dt){
+  const its=e.items;if(!its.length)return;
+  const sp=BUILD[e.type].speed*dt,nx=e.x+DX[e.dir],ny=e.y+DY[e.dir];
+  let prev=null;
+  for(let i=0;i<its.length;i++){
+    const it=its[i];let np=it.p+sp;
+    if(prev!==null)np=Math.min(np,prev-GAP);
+    if(np>=1){const t=at(nx,ny);if(t&&t!==e&&accept(t,it.id,e.dir,np-1)){its.splice(i,1);i--;continue}np=1}
+    if(np>it.p)it.p=np;prev=it.p;
+  }
+}
+const minerMult=()=>1+(has('mining1')?.25:0)+(has('mining2')?.5:0)+(has('mining3')?.75:0);
+const smeltMult=()=>1+(has('smelt1')?.5:0)+(has('smelt2')?.75:0)+lv('rep_smelt')*.1;
+const asmMult=()=>1+lv('rep_asm')*.1;
+const powMult=()=>Math.max(.5,1-lv('rep_power')*.05);
+function bonus(e,id,n){e.pb+=e.ms.prod*n+(BUILD[e.type].cat==='miner'?lv('rep_mine')*.1*n:0);while(e.pb>=1){e.pb-=1;e.out.push(id);addMade(id);spark(e.x*T+T/2,e.y*T+T/2,'#e04848',4)}}
+function updMiner(e,dt,pw){
+  const b=BUILD[e.type],o=ore[idx(e.x,e.y)];
+  pushOut(e);
+  if(!o||!b.ores.includes(o)){e.working=false;e.st='idle';return}
+  if(e.out.length>=3){e.working=false;e.st='block';return}
+  e.working=true;
+  if(pw<=0){e.st='nopower';return}
+  e.st='ok';e.prog+=dt*b.rate*minerMult()*(1+e.ms.spd)*pw;e.anim+=dt*(4+b.rate*8)*pw;
+  if(e.prog>=1){e.prog-=1;const id=ORE_ITEM[o];e.out.push(id);addMade(id);bonus(e,id,1);if(Math.random()<.4)spark(e.x*T+T/2,e.y*T+T/2,ORE_COL[o].c,3)}
+}
+function updFurnace(e,dt,pw){
+  pushOut(e);
+  const r=e.rin&&SMELT[e.rin];
+  if(!e.crafting&&r&&(e.inb[e.rin]||0)>=r.n&&e.out.length<4){e.inb[e.rin]-=r.n;e.crafting=true;e.prog=0}
+  e.working=e.crafting;
+  if(e.crafting&&r){
+    if(pw<=0)e.st='nopower';
+    else{e.st='ok';e.prog+=dt*BUILD[e.type].spd*smeltMult()*(1+e.ms.spd)*pw/r.t;if(e.prog>=1){e.crafting=false;e.prog=0;e.out.push(r.out);addMade(r.out);bonus(e,r.out,1)}}
+  }else e.st=e.out.length>=4?'block':'idle';
+  e.heat+=((e.crafting&&pw>0?1:0)-e.heat)*Math.min(1,dt*3);
+  if(e.crafting&&pw>0&&Math.random()<dt*1.6)smoke(e.x*T+T-8,e.y*T+5,0.6);
+}
+function updCrafter(e,dt,pw){
+  pushOut(e);
+  const r=e.recipe&&RECIPES[e.recipe];
+  if(!r){e.working=false;e.st='norecipe';return}
+  const cap=Math.max(4,r.out*2);
+  if(!e.crafting&&e.out.length<cap){let ok=true;for(const k in r.in)if((e.inb[k]||0)<r.in[k]){ok=false;break}
+    if(ok){for(const k in r.in)e.inb[k]-=r.in[k];e.crafting=true;e.prog=0}}
+  e.working=e.crafting;
+  if(e.crafting){
+    if(pw<=0)e.st='nopower';
+    else{e.st='ok';e.prog+=dt*BUILD[e.type].spd*asmMult()*(1+e.ms.spd)*pw/r.t;e.anim+=dt*3.5*pw;
+      if(e.type==='refinery'&&Math.random()<dt*1.2)smoke(e.x*T+9,e.y*T+5,0.7);
+      if(e.prog>=1){e.crafting=false;e.prog=0;for(let i=0;i<r.out;i++)e.out.push(e.recipe);addMade(e.recipe,r.out);bonus(e,e.recipe,r.out);spark(e.x*T+T/2,e.y*T+T/2,ITEMS[e.recipe].color,5)}}
+  }else e.st=e.out.length>=cap?'block':'idle';
+}
+function updSplit(e){
+  for(let n=0;n<2&&e.buf.length;n++){
+    let sent=false;
+    for(let k=0;k<3;k++){const j=(e.rr+k)%3,d=(e.dir+3+j)%4,t=at(e.x+DX[d],e.y+DY[d]);
+      if(t&&t!==e&&accept(t,e.buf[0],d,0)){e.buf.shift();e.rr=(j+1)%3;sent=true;break}}
+    if(!sent)break;
+  }
+  e.st=e.buf.length>=2?'block':e.buf.length?'ok':'idle';
+}
+function updFilter(e){
+  if(!e.buf.length){e.st=e.filter?'idle':'norecipe';return}
+  const id=e.buf[0],d=id===e.filter?(e.dir+3)%4:e.dir,t=at(e.x+DX[d],e.y+DY[d]);
+  if(t&&t!==e&&accept(t,id,d,0)){e.buf.shift();e.st='ok'}else e.st='block';
+}
+function updChest(e,dt){
+  e.cd-=dt;
+  if(e.cd<=0&&e.buf.length){const t=at(e.x+DX[e.dir],e.y+DY[e.dir]);if(t&&t!==e&&accept(t,e.buf[0],e.dir,0)){e.buf.shift();e.cd=0.08}}
+  e.st=e.buf.length?'ok':'idle';
+}
+function updTunnel(e,dt){
+  if(e.role==='out'){if(!e.pair)e.st='norecipe';return}
+  if(!e.pair){e.st='norecipe';return}
+  for(const it of e.tq)it.t-=dt;
+  let n=0;const x=e.pair;
+  while(e.tq.length&&e.tq[0].t<=0&&n<3){const t=at(x.x+DX[x.dir],x.y+DY[x.dir]);if(t&&t!==x&&accept(t,e.tq[0].id,x.dir,0)){e.tq.shift();n++}else break}
+  e.st=e.tq.length&&e.tq[0].t<=0?'block':e.tq.length?'ok':'idle';x.st=e.st;
+}
+function updDepot(e,dt){
+  if(!e.filter){e.st='norecipe';return}
+  if((inv[e.filter]||0)<=0){e.st='idle';return}
+  e.cd-=dt;if(e.cd>0)return;
+  const t=at(e.x+DX[e.dir],e.y+DY[e.dir]);
+  if(t&&t!==e&&t.type!=='hub'&&accept(t,e.filter,e.dir,0)){inv[e.filter]--;e.cd=0.1;e.st='ok'}else e.st='block';
+}
+function retunnel(){
+  const tl=ents.filter(e=>e.type==='tunnel');
+  const old=new Map(tl.map(e=>[e,e.pair]));
+  tl.forEach(e=>{e.pair=null;e.role='in'});
+  const proj=e=>e.x*DX[e.dir]+e.y*DY[e.dir];
+  tl.sort((a,b)=>(a.dir-b.dir)||(proj(a)-proj(b)));
+  for(const e of tl){if(e.pair||e.role==='out')continue;
+    for(let k=1;k<=TUN_RANGE;k++){const t=at(e.x+DX[e.dir]*k,e.y+DY[e.dir]*k);
+      if(t&&t.type==='tunnel'&&t.dir===e.dir){if(!t.pair&&t.role!=='out'){e.pair=t;t.pair=e;t.role='out'}break}}}
+  tl.forEach(e=>{if(e.tq.length&&(e.role!=='in'||e.pair!==old.get(e))){e.tq.forEach(it=>addInv(it.id));e.tq=[]}});
+}
+function predictTunnelRole(x,y,dir){
+  for(let k=1;k<=TUN_RANGE;k++){const t=at(x-DX[dir]*k,y-DY[dir]*k);if(t&&t.type==='tunnel'&&t.dir===dir)return t.role==='in'&&!t.pair?'out':'in'}
+  return'in';
+}
+function powerStep(dt){
+  let demand=0;const burners=[],accs=[];let nWind=0,nSolar=0;
+  const pm=powMult();
+  for(const e of ents){const b=BUILD[e.type];if(!b)continue;
+    if(e.working&&b.power)demand+=b.power*(1+(e.ms?e.ms.pow:0))*pm;
+    if(b.fuels)burners.push(e);else if(e.type==='wind')nWind++;else if(e.type==='solar')nSolar++;else if(e.type==='accumulator')accs.push(e)}
+  const windP=nWind*BUILD.wind.cap*wind,solarP=nSolar*BUILD.solar.cap*sun,fixed=windP+solarP;
+  let burnCap=0;for(const g of burners){g._av=g.energy>0||g.fq.length>0;if(g._av)burnCap+=BUILD[g.type].cap}
+  let accCap=0,stored=0,storeCap=0;for(const a of accs){accCap+=Math.min(BUILD.accumulator.rate,a.charge/Math.max(dt,1e-3));stored+=a.charge;storeCap+=BUILD.accumulator.store}
+  const src={wind:Math.min(windP,demand),solar:0,coal:0,nuclear:0,battery:0,charging:0};
+  let fromBurn=0,fromAcc=0;
+  if(fixed>=demand){
+    src.wind=demand>0?windP*Math.min(1,demand/Math.max(fixed,1e-6)):0;src.solar=demand>0?solarP*Math.min(1,demand/Math.max(fixed,1e-6)):0;
+    let surplus=fixed-demand;for(const a of accs){const add=Math.min(surplus,BUILD.accumulator.rate,(BUILD.accumulator.store-a.charge)/Math.max(dt,1e-3));if(add>0){a.charge+=add*dt;surplus-=add;src.charging+=add}}
+  }else{
+    src.wind=windP;src.solar=solarP;
+    const deficit=demand-fixed;fromBurn=Math.min(deficit,burnCap);fromAcc=Math.min(deficit-fromBurn,accCap);
+    if(fromAcc>0&&accCap>0)for(const a of accs){const take=Math.min(BUILD.accumulator.rate,a.charge/Math.max(dt,1e-3))/accCap*fromAcc;a.charge=Math.max(0,a.charge-take*dt)}
+    src.battery=fromAcc;
+  }
+  for(const g of burners){const b=BUILD[g.type];
+    if(g._av&&fromBurn>0){const share=b.cap/burnCap*fromBurn;g.load=share/b.cap;g.energy-=share*dt;while(g.energy<=0&&g.fq.length){g.energy+=FUEL[g.fq.shift()]}if(g.energy<0)g.energy=0;
+      if(g.type==='reactor')src.nuclear+=share;else src.coal+=share;
+      g.anim+=dt*(2+g.load*16);g.st='ok';if(g.type==='generator'&&Math.random()<dt*(0.5+g.load*3))smoke(g.x*T+T/2,g.y*T+8,0.9);if(g.type==='reactor'&&Math.random()<dt*g.load*2)smoke(g.x*T+T/2,g.y*T+6,1.4)}
+    else{g.load=0;g.st=g._av?'idle':'nopower';if(g._av)g.anim+=dt*0.6}}
+  for(const a of accs)a.st=a.charge>1?'ok':'idle';
+  for(const e of ents){if(e.type==='wind'){e.anim+=dt*(0.6+wind*5);e.st='ok'}else if(e.type==='solar')e.st=sun>0.05?'ok':'idle'}
+  const supply=fixed+burnCap+accCap,got=fixed+fromBurn+fromAcc;
+  const sat=demand>0?Math.min(1,got/demand):1;
+  power={demand,supply,sat,src,stored,storeCap};
+}
+function researchStep(dt){
+  if(!active)return;const tc=TECH_BY[active],c=costOf(tc);rBudget=Math.min(rBudget+dt*30,30);
+  for(const k in c){const need=c[k]-(paid[k]||0);if(need>0){const take=Math.min(need,inv[k]||0,Math.floor(rBudget));if(take>0){inv[k]-=take;paid[k]=(paid[k]||0)+take;rBudget-=take}}}
+  if(Object.keys(c).every(k=>(paid[k]||0)>=c[k]))completeTech(active);
+}
+function completeTech(id){
+  const tc=TECH_BY[id];active=null;paid={};
+  if(tc.rep){techLv[id]=lv(id)+1;toast(`${tc.name} level ${lv(id)}`,true)}else{techs.add(id);toast(`Researched: ${tc.name}`,true)}
+  chord();refreshHotbar(true);
+  if(id==='launch'){won=true;launch={t:0,shown:false};closeAll()}
+  nextQueued();
+}
+function startResearch(id,quiet){
+  if(active===id)return;
+  if(active){refund(paid);paid={}}
+  rq=rq.filter(q=>q!==id);
+  active=id;rBudget=0;if(!quiet)toast('Researching '+TECH_BY[id].name);blip(660,0.08,'triangle',0.04);
+}
+function nextQueued(){
+  rq=rq.filter(q=>TECH_BY[q].rep||!has(q));
+  if(active)return;
+  const i=rq.findIndex(q=>techState(TECH_BY[q])==='ready');if(i<0)return;
+  const id=rq[i];startResearch(id,true);toast('Next up: '+TECH_BY[id].name);
+}
+function queueTech(id){
+  const add=q=>{const t=TECH_BY[q];if((!t.rep&&has(q))||active===q||rq.includes(q))return;t.req.forEach(add);rq.push(q)};
+  const before=rq.length;add(id);
+  if(rq.length>before)toast(rq.length-before>1?`Queued ${TECH_BY[id].name} and ${rq.length-before-1} prerequisite${rq.length-before>2?'s':''}`:`Queued ${TECH_BY[id].name}`);
+  nextQueued();
+}
+const techState=t=>(!t.rep&&has(t.id))?'done':active===t.id?'active':t.req.every(has)?'ready':'locked';
+const researchFrac=()=>{if(!active)return 0;const c=costOf(TECH_BY[active]);let a=0,b=0;for(const k in c){a+=Math.min(paid[k]||0,c[k]);b+=c[k]}return a/b};
+
+// ================== PLACE / REMOVE / UPGRADE ==================
+let lastToast={m:'',t:0};
+function canPlace(type,x,y){
+  if(!inb(x,y))return'That spot is off the map.';
+  const e=at(x,y);
+  if(e){if(e.type===type)return'same';if(isBelt(type)&&isBelt(e.type))return'upgrade';return'That tile is already taken.'}
+  const b=BUILD[type];
+  if(b.cat==='miner'&&!b.ores.includes(ore[idx(x,y)]))return type==='pump'?'Pumpjacks go on dark oil seeps.':'Drills go on solid ore tiles.';
+  return'ok';
+}
+function missing(c){for(const k in c)if((inv[k]||0)<c[k])return`Need ${c[k]-(inv[k]||0)} more ${N(k)}.`;return''}
+function applyMeta(e,meta){
+  if(!meta)return;
+  if(meta.r&&BUILD[e.type].cat==='crafter'&&RECIPES[meta.r]&&unlockedR(meta.r)&&recipeCat(meta.r)===BUILD[e.type].rc)e.recipe=meta.r;
+  if(meta.f&&(e.type==='filter'||e.type==='depot'))e.filter=meta.f;
+  if(meta.m&&BUILD[e.type].slots){for(const m of meta.m){if(e.mods.length>=BUILD[e.type].slots)break;if((inv[m]||0)>0){inv[m]--;e.mods.push(m)}}calcMods(e)}
+}
+function place(type,x,y,dir,quiet,meta){
+  const b=BUILD[type],c=canPlace(type,x,y);
+  if(c==='same'){const e=at(x,y);if(isBelt(type)&&e.dir!==dir)e.dir=dir;return e}
+  if(c==='upgrade'){const old=at(x,y);if(!canAfford(b.cost)){toast(missing(b.cost));return null}
+    pay(b.cost);refund(BUILD[old.type].cost);old.type=type;old.dir=dir;if(!quiet)blip(880,0.04);return old}
+  if(c!=='ok'){if(!quiet)toast(c);return null}
+  if(!canAfford(b.cost)){toast(missing(b.cost));return null}
+  pay(b.cost);const e=mkEnt(type,x,y,dir);
+  applyMeta(e,meta||{r:pipRecipe,f:pipFilter,m:pipMods});
+  if(type==='tunnel'&&!(meta&&meta.batch))retunnel();
+  for(let i=0;i<5;i++)particles.push({x:x*T+T/2+(Math.random()-.5)*T,y:y*T+T/2+(Math.random()-.5)*T,vx:(Math.random()-.5)*30,vy:(Math.random()-.5)*30,life:.4,max:.4,r:2.2,c:'rgba(242,169,59,1)'});
+  if(!meta)blip(isBelt(type)?740:440,0.04,'square',0.025);
+  return e;
+}
+function collect(e){
+  if(e.items)e.items.forEach(it=>addInv(it.id));
+  if(e.out)e.out.forEach(addInv);
+  if(e.buf)e.buf.forEach(addInv);
+  if(e.inb)for(const k in e.inb)if(e.inb[k]>0)addInv(k,e.inb[k]);
+  if(e.crafting){if(e.rin&&SMELT[e.rin]&&BUILD[e.type].cat==='smelter')addInv(e.rin,SMELT[e.rin].n);else if(e.recipe){const r=RECIPES[e.recipe];for(const k in r.in)addInv(k,r.in[k])}}
+  if(e.fq)e.fq.forEach(addInv);
+  if(e.mods)e.mods.forEach(addInv);
+  if(e.tq)e.tq.forEach(it=>addInv(it.id));
+}
+function removeAt(x,y,quiet){
+  const e=at(x,y);if(!e||e.type==='hub')return false;
+  refund(BUILD[e.type].cost);collect(e);
+  ents.splice(ents.indexOf(e),1);grid[idx(x,y)]=null;
+  if(e.type==='tunnel')retunnel();
+  if(inspected===e)closeInspector();
+  for(let i=0;i<5;i++)particles.push({x:x*T+T/2,y:y*T+T/2,vx:(Math.random()-.5)*60,vy:(Math.random()-.5)*60,life:.35,max:.35,r:2,c:'rgba(180,180,170,1)'});
+  if(!quiet)blip(220,0.05,'square',0.025);
+  return true;
+}
+function upgradeEnt(e){
+  const nx=BUILD[e.type]&&BUILD[e.type].next;if(!nx)return'none';if(!unlockedB(nx))return'locked';
+  if(!canAfford(BUILD[nx].cost))return'poor';
+  pay(BUILD[nx].cost);refund(BUILD[e.type].cost);e.type=nx;
+  if(e.mods)calcMods(e);
+  for(let i=0;i<6;i++)particles.push({x:e.x*T+T/2,y:e.y*T+T/2,vx:(Math.random()-.5)*50,vy:-20-Math.random()*40,life:.5,max:.5,r:2,c:'rgba(108,209,122,1)'});
+  return'ok';
+}
+function setRecipe(e,r){
+  if(e.recipe===r)return;
+  for(const k in e.inb)if(e.inb[k]>0)addInv(k,e.inb[k]);e.out.forEach(addInv);
+  if(e.crafting&&e.recipe){const o=RECIPES[e.recipe];for(const k in o.in)addInv(k,o.in[k])}
+  e.inb={};e.out=[];e.crafting=false;e.prog=0;e.recipe=r;blip(600,0.05,'triangle');
+}
+
+// ================== BLUEPRINTS ==================
+function loadBP(){try{const s=localStorage.getItem(BP_KEY);if(s){const b=JSON.parse(s);if(Array.isArray(b))blueprints=b.filter(validBP)}}catch(e){}}
+function saveBP(){try{localStorage.setItem(BP_KEY,JSON.stringify(blueprints))}catch(e){}}
+function validBP(b){return b&&Array.isArray(b.ents)&&b.ents.length&&b.ents.every(o=>BUILD[o.t]&&Number.isFinite(o.dx)&&Number.isFinite(o.dy)&&o.d>=0&&o.d<4)}
+function bpCells(bp,r){
+  let cells=bp.ents.map(o=>({...o}));
+  for(let k=0;k<r;k++)cells=cells.map(o=>({...o,dx:-o.dy,dy:o.dx,d:(o.d+1)%4}));
+  const mx=Math.min(...cells.map(c=>c.dx)),my=Math.min(...cells.map(c=>c.dy));cells.forEach(c=>{c.dx-=mx;c.dy-=my});
+  return{cells,w:Math.max(...cells.map(c=>c.dx))+1,h:Math.max(...cells.map(c=>c.dy))+1};
+}
+function bpName(list){
+  const rc={};list.forEach(o=>{if(o.r)rc[o.r]=(rc[o.r]||0)+1});const top=Object.keys(rc).sort((a,b)=>rc[b]-rc[a])[0];
+  if(top)return N(top)+' line';
+  const tc={};list.forEach(o=>tc[o.t]=(tc[o.t]||0)+1);const tt=Object.keys(tc).sort((a,b)=>tc[b]-tc[a])[0];
+  return BUILD[tt].name+' block';
+}
+function copyArea(x0,y0,x1,y1){
+  const list=[];
+  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const e=at(x,y);if(!e||e.type==='hub')continue;
+    const o={t:e.type,dx:x-x0,dy:y-y0,d:e.dir};if(e.recipe)o.r=e.recipe;if(e.filter)o.f=e.filter;if(e.mods&&e.mods.length)o.m=[...e.mods];list.push(o)}
+  if(!list.length){toast('Nothing to copy in that box.');return}
+  const bp={name:bpName(list),ents:list,made:Date.now()};
+  bp.ents=bpCells(bp,0).cells;
+  blueprints.unshift(bp);saveBP();bpSel=0;bpRot=0;tool=null;sel=null;
+  toast(`Copied ${list.length} buildings. Click to paste, R to rotate.`);blip(700,0.08,'triangle',0.04);
+  if(!libEl.hidden)renderLib();refreshHotbar(true);updateModebar();
+}
+function pasteBP(tx,ty){
+  const bp=blueprints[bpSel];if(!bp)return;const{cells,w,h}=bpCells(bp,bpRot);const ox=tx-Math.floor(w/2),oy=ty-Math.floor(h/2);
+  let placed=0,skipped=0,poor='',locked=0;
+  for(const c of cells){const x=ox+c.dx,y=oy+c.dy;
+    if(!unlockedB(c.t)){locked++;continue}
+    const st=canPlace(c.t,x,y);
+    if(st==='same'){const e=at(x,y);e.dir=c.d;if(c.r&&e.recipe!==c.r&&BUILD[e.type].cat==='crafter'&&unlockedR(c.r))setRecipe(e,c.r);if(c.f&&(e.type==='filter'||e.type==='depot'))e.filter=c.f;continue}
+    if(st!=='ok'){skipped++;continue}
+    if(!canAfford(BUILD[c.t].cost)){skipped++;poor=poor||missing(BUILD[c.t].cost);continue}
+    if(place(c.t,x,y,c.d,true,{...c,batch:true}))placed++;
+  }
+  if(cells.some(c=>c.t==='tunnel'))retunnel();
+  if(placed)blip(620,0.09,'triangle',0.05);
+  let m=`Placed ${placed}`;if(skipped)m+=` · ${skipped} skipped`;if(locked)m+=` · ${locked} not researched`;if(poor)m+=` · ${poor}`;toast(m);
+}
+function applyRect(t,ax,ay,bx,by){
+  const x0=Math.max(0,Math.min(ax,bx)),x1=Math.min(W-1,Math.max(ax,bx)),y0=Math.max(0,Math.min(ay,by)),y1=Math.min(H-1,Math.max(ay,by));
+  if(t==='copy'){copyArea(x0,y0,x1,y1);return}
+  if(t==='clear'){let n=0;for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)if(removeAt(x,y,true))n++;if(n){toast(`Removed ${n} buildings`);blip(200,0.1,'square',0.03)}return}
+  if(t==='upgrade'){let n=0,poor=0,lockd=0;for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const e=at(x,y);if(!e||e.type==='hub')continue;const r=upgradeEnt(e);if(r==='ok')n++;else if(r==='poor')poor++;else if(r==='locked')lockd++}
+    toast(`Upgraded ${n}${poor?` · ${poor} need more materials`:''}${lockd?` · ${lockd} need research`:''}`);if(n)blip(880,0.1,'triangle',0.04)}
+}
+function bpExport(bp){return'FL1:'+btoa(unescape(encodeURIComponent(JSON.stringify({name:bp.name,ents:bp.ents}))))}
+function bpImport(str){
+  try{str=str.trim();if(!str.startsWith('FL1:'))throw 0;const o=JSON.parse(decodeURIComponent(escape(atob(str.slice(4)))));
+    const bp={name:String(o.name||'Imported').slice(0,40),ents:(o.ents||[]).map(c=>({t:c.t,dx:+c.dx,dy:+c.dy,d:+c.d,r:c.r&&RECIPES[c.r]?c.r:undefined,f:c.f&&ITEMS[c.f]?c.f:undefined,m:Array.isArray(c.m)?c.m.filter(m=>MODS[m]):undefined})),made:Date.now()};
+    if(!validBP(bp))throw 0;bp.ents=bpCells(bp,0).cells;blueprints.unshift(bp);saveBP();return true}catch(e){return false}
+}
+
+// ================== PARTICLES ==================
+function smoke(x,y,s){if(particles.length>600)return;particles.push({x:x+(Math.random()-.5)*4,y,vx:(Math.random()-.5)*6+wind*6,vy:-10-Math.random()*8,life:1.6*s+.4,max:1.6*s+.4,r:3+Math.random()*2,c:'rgba(120,118,112,1)',grow:6,smoke:true})}
+function spark(x,y,c,n){for(let i=0;i<n;i++){if(particles.length>600)return;particles.push({x,y,vx:(Math.random()-.5)*70,vy:(Math.random()-.5)*70,life:.35,max:.35,r:1.6,c:hexToRgba(c)})}}
+function hexToRgba(h){const[r,g,b]=hexRgb(h);return`rgba(${r},${g},${b},1)`}
+
+// ================== ICONS ==================
+let ctx;const ICON={},ICONURL={},BICON={};
+function poly(g,pts,r){g.beginPath();pts.forEach(([a,b],i)=>i?g.lineTo(a*r,b*r):g.moveTo(a*r,b*r));g.closePath()}
+function circ(g,x,y,r){g.beginPath();g.arc(x,y,r,0,Math.PI*2)}
+function rrect(g,x,y,w,h,r){g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath()}
+function gearPath(g,r,teeth,depth){g.beginPath();const n=teeth*4;for(let i=0;i<n;i++){const a=i/n*Math.PI*2,rr=(i%4<2)?r:r-depth;g.lineTo(Math.cos(a)*rr,Math.sin(a)*rr)}g.closePath()}
+function drawItemShape(g,id,s){
+  const it=ITEMS[id],c=it.color,r=s/2;g.lineJoin='round';g.lineCap='round';g.lineWidth=s*0.075;g.strokeStyle=it.edge||shade(c,-0.5);
+  switch(it.shape){
+    case'ore':poly(g,[[-.8,-.25],[-.4,-.8],[.3,-.78],[.85,-.2],[.72,.5],[.1,.86],[-.6,.66]],r);g.fillStyle=c;g.fill();g.stroke();
+      g.fillStyle=shade(c,.4);circ(g,-.28*r,-.3*r,.17*r);g.fill();g.fillStyle=shade(c,-.25);circ(g,.3*r,.25*r,.16*r);g.fill();break;
+    case'crystal':poly(g,[[0,-1],[.55,-.35],[.45,.75],[-.1,1],[-.55,.6],[-.5,-.4]],r);g.fillStyle=c;g.fill();g.stroke();
+      g.strokeStyle='#fff9';g.lineWidth=s*.05;g.beginPath();g.moveTo(0,-.9*r);g.lineTo(-.05*r,.85*r);g.stroke();break;
+    case'plate':rrect(g,-.85*r,-.62*r,1.7*r,1.24*r,.22*r);g.fillStyle=c;g.fill();g.stroke();
+      g.strokeStyle='#fff8';g.lineWidth=s*.06;g.beginPath();g.moveTo(-.55*r,-.32*r);g.lineTo(.5*r,-.32*r);g.stroke();break;
+    case'brick':g.fillStyle=c;rrect(g,-.88*r,-.52*r,1.76*r,1.04*r,.1*r);g.fill();g.stroke();
+      g.strokeStyle=shade(c,-.45);g.lineWidth=s*.05;g.beginPath();g.moveTo(-.88*r,0);g.lineTo(.88*r,0);g.moveTo(0,-.52*r);g.lineTo(0,0);g.moveTo(-.44*r,0);g.lineTo(-.44*r,.52*r);g.moveTo(.44*r,0);g.lineTo(.44*r,.52*r);g.stroke();break;
+    case'block':rrect(g,-.8*r,-.8*r,1.6*r,1.6*r,.12*r);g.fillStyle=c;g.fill();g.stroke();g.fillStyle=shade(c,-.3);
+      [[-.4,-.35],[.3,-.45],[.05,.1],[-.45,.45],[.45,.35]].forEach(([a,b])=>{circ(g,a*r,b*r,.08*r);g.fill()});break;
+    case'ingot':poly(g,[[-.58,-.42],[.58,-.42],[.9,.45],[-.9,.45]],r);g.fillStyle=c;g.fill();g.stroke();
+      g.fillStyle='#fff6';poly(g,[[-.5,-.34],[.5,-.34],[.55,-.18],[-.55,-.18]],r);g.fill();break;
+    case'wafer':circ(g,0,0,.84*r);g.fillStyle=c;g.fill();g.stroke();g.strokeStyle='#fff5';g.lineWidth=s*.035;
+      for(let k=-1;k<=1;k++){g.beginPath();g.moveTo(k*.35*r,-.7*r);g.lineTo(k*.35*r,.7*r);g.moveTo(-.7*r,k*.35*r);g.lineTo(.7*r,k*.35*r);g.stroke()}break;
+    case'gear':gearPath(g,.92*r,9,.24*r);g.fillStyle=c;g.fill();g.stroke();circ(g,0,0,.28*r);g.fillStyle=shade(c,-.55);g.fill();break;
+    case'wire':g.strokeStyle=shade(c,-.4);g.lineWidth=s*.2;for(let k=0;k<3;k++){g.beginPath();g.ellipse((k-1)*.38*r,0,.3*r,.72*r,0,0,Math.PI*2);g.stroke()}
+      g.strokeStyle=c;g.lineWidth=s*.11;for(let k=0;k<3;k++){g.beginPath();g.ellipse((k-1)*.38*r,0,.3*r,.72*r,0,0,Math.PI*2);g.stroke()}break;
+    case'chip':g.strokeStyle='#c9ccd2';g.lineWidth=s*.07;for(let k=-1;k<=1;k++){g.beginPath();g.moveTo(-.95*r,k*.4*r);g.lineTo(.95*r,k*.4*r);g.moveTo(k*.4*r,-.95*r);g.lineTo(k*.4*r,.95*r);g.stroke()}
+      rrect(g,-.68*r,-.68*r,1.36*r,1.36*r,.14*r);g.fillStyle=c;g.fill();g.strokeStyle=shade(c,-.5);g.lineWidth=s*.06;g.stroke();
+      g.fillStyle='#ffffff55';g.fillRect(-.28*r,-.28*r,.56*r,.56*r);break;
+    case'beam':poly(g,[[-.85,-.6],[.85,-.6],[.85,-.32],[.2,-.32],[.2,.32],[.85,.32],[.85,.6],[-.85,.6],[-.85,.32],[-.2,.32],[-.2,-.32],[-.85,-.32]],r);g.fillStyle=c;g.fill();g.stroke();break;
+    case'motor':g.fillStyle='#9aa3ad';g.fillRect(.6*r,-.12*r,.38*r,.24*r);rrect(g,-.8*r,-.58*r,1.45*r,1.16*r,.25*r);g.fillStyle=c;g.fill();g.stroke();
+      g.fillStyle='#d6dbe2';g.fillRect(-.82*r,-.22*r,1.5*r,.12*r);g.fillRect(-.82*r,.12*r,1.5*r,.12*r);break;
+    case'frame':g.strokeStyle=shade(c,-.45);g.lineWidth=s*.2;rrect(g,-.72*r,-.72*r,1.44*r,1.44*r,.08*r);g.stroke();g.beginPath();g.moveTo(-.65*r,-.65*r);g.lineTo(.65*r,.65*r);g.stroke();
+      g.strokeStyle=c;g.lineWidth=s*.12;rrect(g,-.72*r,-.72*r,1.44*r,1.44*r,.08*r);g.stroke();g.beginPath();g.moveTo(-.65*r,-.65*r);g.lineTo(.65*r,.65*r);g.stroke();break;
+    case'flask':g.beginPath();g.moveTo(-.2*r,-.95*r);g.lineTo(.2*r,-.95*r);g.lineTo(.2*r,-.35*r);g.lineTo(.75*r,.7*r);g.quadraticCurveTo(.8*r,.95*r,.5*r,.95*r);g.lineTo(-.5*r,.95*r);g.quadraticCurveTo(-.8*r,.95*r,-.75*r,.7*r);g.lineTo(-.2*r,-.35*r);g.closePath();
+      g.fillStyle='#e8eef544';g.fill();g.save();g.clip();g.fillStyle=c;g.fillRect(-r,.05*r,2*r,r);g.fillStyle='#fff6';g.fillRect(-.45*r,.15*r,.25*r,.12*r);g.restore();g.strokeStyle='#e8eef5';g.lineWidth=s*.07;g.stroke();
+      g.fillStyle='#8a6a4a';g.fillRect(-.26*r,-1*r,.52*r,.2*r);break;
+    case'rocket':g.fillStyle='#d9534a';poly(g,[[-.42,.4],[-.75,.95],[-.3,.75]],r);g.fill();poly(g,[[.42,.4],[.75,.95],[.3,.75]],r);g.fill();
+      g.beginPath();g.moveTo(0,-1*r);g.quadraticCurveTo(.55*r,-.4*r,.38*r,.85*r);g.lineTo(-.38*r,.85*r);g.quadraticCurveTo(-.55*r,-.4*r,0,-1*r);g.fillStyle=c;g.fill();g.strokeStyle='#5a5f6a';g.lineWidth=s*.06;g.stroke();
+      circ(g,0,-.2*r,.17*r);g.fillStyle='#4a8ef0';g.fill();break;
+    case'barrel':rrect(g,-.62*r,-.88*r,1.24*r,1.76*r,.22*r);g.fillStyle='#3a3029';g.fill();g.strokeStyle='#120e0b';g.stroke();
+      g.fillStyle='#c9a227';g.fillRect(-.62*r,-.45*r,1.24*r,.14*r);g.fillRect(-.62*r,.3*r,1.24*r,.14*r);g.fillStyle='#ffffff33';g.fillRect(-.42*r,-.75*r,.14*r,1.5*r);break;
+    case'plastic':rrect(g,-.82*r,-.6*r,1.64*r,1.2*r,.45*r);g.fillStyle=c;g.fill();g.strokeStyle='#9aa4b0';g.stroke();g.strokeStyle='#c6ced8';g.lineWidth=s*.05;
+      g.beginPath();g.moveTo(-.5*r,0);g.quadraticCurveTo(-.25*r,-.25*r,0,0);g.quadraticCurveTo(.25*r,.25*r,.5*r,0);g.stroke();break;
+    case'battery':rrect(g,-.5*r,-.78*r,1*r,1.62*r,.15*r);g.fillStyle=c;g.fill();g.strokeStyle='#15171b';g.stroke();g.fillStyle='#c8ccd2';g.fillRect(-.2*r,-.98*r,.4*r,.22*r);
+      g.fillStyle='#6cd17a';g.fillRect(-.36*r,.0,.72*r,.66*r);g.fillStyle='#e8d43a';poly(g,[[.08,-.62],[-.2,-.1],[0,-.1],[-.1,.25],[.2,-.25],[0,-.25]],r);g.fill();break;
+    case'lds':poly(g,[[0,-.9],[.85,-.4],[.85,.5],[0,.95],[-.85,.5],[-.85,-.4]],r);g.fillStyle=c;g.fill();g.strokeStyle='#5c6670';g.stroke();
+      g.strokeStyle='#e8935a';g.lineWidth=s*.06;g.beginPath();g.moveTo(-.85*r,-.4*r);g.lineTo(0,.05*r);g.lineTo(.85*r,-.4*r);g.moveTo(0,.05*r);g.lineTo(0,.95*r);g.stroke();break;
+    case'canister':rrect(g,-.55*r,-.7*r,1.1*r,1.6*r,.25*r);g.fillStyle=c;g.fill();g.stroke();g.fillStyle='#8a2c26';g.fillRect(-.25*r,-.95*r,.5*r,.3*r);
+      g.fillStyle='#f2d23b';g.fillRect(-.55*r,-.05*r,1.1*r,.22*r);break;
+    case'pellet':g.shadowColor=c;g.shadowBlur=s*.3;poly(g,[[0,-.85],[.75,-.42],[.75,.42],[0,.85],[-.75,.42],[-.75,-.42]],r);g.fillStyle=c;g.fill();g.shadowBlur=0;g.strokeStyle='#1d4a1b';g.stroke();
+      g.fillStyle='#ffffffaa';circ(g,-.2*r,-.25*r,.15*r);g.fill();break;
+    case'rod':g.save();g.rotate(-.6);rrect(g,-.28*r,-.95*r,.56*r,1.9*r,.25*r);g.fillStyle='#9aa4b0';g.fill();g.strokeStyle='#3b4148';g.stroke();g.fillStyle=c;g.shadowColor=c;g.shadowBlur=s*.25;g.fillRect(-.14*r,-.65*r,.28*r,1.3*r);g.restore();break;
+    case'module':rrect(g,-.78*r,-.62*r,1.56*r,1.24*r,.14*r);g.fillStyle='#2b3138';g.fill();g.strokeStyle='#14181b';g.stroke();g.fillStyle=c;g.fillRect(-.6*r,-.45*r,1.2*r,.42*r);
+      g.fillStyle='#d9a43a';for(let k=0;k<5;k++)g.fillRect((-.55+k*.25)*r,.3*r,.12*r,.28*r);if(it.tier===2){g.fillStyle='#fff';g.fillRect(-.12*r,-.38*r,.08*r,.28*r);g.fillRect(.05*r,-.38*r,.08*r,.28*r)}break;
+  }
+}
+function fakeEnt(t,dir){return{type:t,x:0,y:0,dir:dir??1,items:[],out:[],inb:{},buf:[],anim:.4,heat:.7,prog:.6,st:null,fq:['coal'],load:.6,charge:2500,crafting:true,mods:[],recipe:null,rin:null}}
+function makeIcons(){
+  for(const id in ITEMS){const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');g.translate(32,32);drawItemShape(g,id,50);ICON[id]=c;ICONURL[id]=c.toDataURL()}
+  for(const t of HOT){const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');const saved=ctx;ctx=g;g.scale(2,2);
+    const f=fakeEnt(t);if(BUILD[t].rc==='asm')f.recipe='gear';if(t==='refinery')f.recipe='plastic';if(BUILD[t].cat==='smelter')f.rin='iron_ore';
+    if(isBelt(t)){f.items=[{id:'iron_plate',p:.3},{id:'copper_plate',p:.8}];drawBelt(f,0,true);drawBeltItems(f)}else{if(t==='wind'){g.translate(16,16);g.scale(.62,.62);g.translate(-16,-16)}drawMachine(f,0.4,true)}
+    ctx=saved;BICON[t]=c}
+  const toolDraw={copy:g=>{g.strokeStyle='#5aa9f0';g.lineWidth=3;g.setLineDash([6,4]);g.strokeRect(10,10,44,44);g.setLineDash([]);g.fillStyle='#5aa9f0';g.fillRect(28,20,8,24);g.fillRect(20,28,24,8)},
+    upgrade:g=>{g.strokeStyle='#6cd17a';g.lineWidth=3;g.setLineDash([6,4]);g.strokeRect(10,10,44,44);g.setLineDash([]);g.fillStyle='#6cd17a';g.beginPath();g.moveTo(32,16);g.lineTo(46,32);g.lineTo(37,32);g.lineTo(37,46);g.lineTo(27,46);g.lineTo(27,32);g.lineTo(18,32);g.closePath();g.fill()},
+    clear:g=>{g.strokeStyle='#ef5b4c';g.lineWidth=3;g.setLineDash([6,4]);g.strokeRect(10,10,44,44);g.setLineDash([]);g.lineWidth=5;g.lineCap='round';g.beginPath();g.moveTo(22,22);g.lineTo(42,42);g.moveTo(42,22);g.lineTo(22,42);g.stroke()},
+    lib:g=>{for(let k=2;k>=0;k--){g.fillStyle=k?'#2a4a78':'#3f6fb0';g.fillRect(12+k*5,10+k*5,34,40);g.strokeStyle='#9cc4ff';g.lineWidth=1.5;g.strokeRect(12+k*5,10+k*5,34,40)}
+      g.strokeStyle='#cfe2ff';g.lineWidth=2;g.beginPath();g.moveTo(18,20);g.lineTo(40,20);g.moveTo(18,28);g.lineTo(34,28);g.stroke()}};
+  for(const t of TOOLS){const c=document.createElement('canvas');c.width=c.height=64;toolDraw[t.id](c.getContext('2d'));BICON['tool_'+t.id]=c}
+}
+const img=(id,s=18)=>`<img src="${ICONURL[id]}" width="${s}" height="${s}" alt="">`;
+
+// ================== DRAW ==================
+const cv=document.getElementById('cv');ctx=cv.getContext('2d');
+let dpr=1,cw=0,ch=0;
+function resize(){dpr=Math.min(2,window.devicePixelRatio||1);cw=innerWidth;ch=innerHeight;cv.width=Math.round(cw*dpr);cv.height=Math.round(ch*dpr)}
+addEventListener('resize',resize);resize();
+
+const chunkCache=new Map();
+function getChunk(cx,cy){
+  const key=cx+','+cy;let c=chunkCache.get(key);if(c)return c;
+  c=document.createElement('canvas');c.width=c.height=CH*T;const g=c.getContext('2d');
+  for(let ty=0;ty<CH;ty++)for(let tx=0;tx<CH;tx++){
+    const x=cx*CH+tx,y=cy*CH+ty,px=tx*T,py=ty*T;
+    if(!inb(x,y)){g.fillStyle='#0b0d0c';g.fillRect(px,py,T,T);continue}
+    const n=vnoise(x/9,y/9)*0.7+hash2(x,y)*0.3;
+    g.fillStyle=mix('#232720','#2f342a',n);g.fillRect(px,py,T,T);
+    if(hash2(x+7,y)<0.4){g.fillStyle='rgba(255,255,240,.04)';g.fillRect(px+hash2(x,y+3)*28,py+hash2(x+2,y)*28,2,2)}
+    if(hash2(x,y+11)<0.05){g.fillStyle='rgba(0,0,0,.18)';circ(g,px+8+hash2(x+5,y)*16,py+8+hash2(x,y+5)*16,3+hash2(x+1,y+1)*3);g.fill()}
+    const o=ore[idx(x,y)];
+    if(o===6){g.fillStyle='rgba(0,0,0,.35)';g.fillRect(px,py,T,T);g.fillStyle='#0b0908';g.beginPath();g.ellipse(px+T/2+(hash2(x,y)-.5)*6,py+T/2+(hash2(y,x)-.5)*6,11+hash2(x+3,y)*3,8+hash2(x,y+3)*3,hash2(x,y)*3,0,Math.PI*2);g.fill();
+      const gr=g.createLinearGradient(px+6,py+8,px+26,py+24);gr.addColorStop(0,'rgba(120,90,255,.35)');gr.addColorStop(.5,'rgba(80,220,200,.25)');gr.addColorStop(1,'rgba(255,120,200,.2)');g.fillStyle=gr;g.beginPath();g.ellipse(px+T/2-2,py+T/2-2,6,3,.4,0,Math.PI*2);g.fill()}
+    else if(o){const oc=ORE_COL[o];g.fillStyle=oc.tint;g.fillRect(px,py,T,T);
+      for(let k=0;k<4;k++){const hx=px+6+hash2(x*3+k,y)*20,hy=py+6+hash2(x,y*3+k)*20,r=3+hash2(x+k,y+k)*3.4;
+        if(o===5){g.fillStyle=oc.dark;poly(g,[[0,-1.2],[.7,0],[0,1],[-.7,0]].map(([a,b])=>[a+hx/r+.2,b+hy/r+.25]),r);g.fill();g.fillStyle=oc.c;poly(g,[[0,-1.2],[.7,0],[0,1],[-.7,0]].map(([a,b])=>[a+hx/r,b+hy/r]),r);g.fill()}
+        else{g.fillStyle=oc.dark;circ(g,hx+.8,hy+1.4,r);g.fill();g.fillStyle=oc.c;circ(g,hx,hy,r);g.fill();g.fillStyle=oc.hi;g.fillRect(hx-r*.45,hy-r*.5,r*.45,r*.35)}}}
+    g.fillStyle='rgba(0,0,0,.14)';g.fillRect(px,py+T-1,T,1);g.fillRect(px+T-1,py,1,T);
+  }
+  chunkCache.set(key,c);if(chunkCache.size>110)chunkCache.delete(chunkCache.keys().next().value);
+  return c;
+}
+function rr(x,y,w,h,r){rrect(ctx,x,y,w,h,r)}
+function base(e,fill,edge){const x=e.x*T,y=e.y*T;ctx.fillStyle=edge;rr(x+1,y+1,T-2,T-2,5);ctx.fill();ctx.fillStyle=fill;rr(x+3,y+3,T-6,T-6,3.5);ctx.fill();ctx.fillStyle='rgba(255,255,255,.08)';ctx.fillRect(x+5,y+3.5,T-10,1.5)}
+function edgeMark(e,dir,col){const cx=e.x*T+T/2,cy=e.y*T+T/2;ctx.save();ctx.translate(cx,cy);ctx.rotate(dir*Math.PI/2);ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(-5,-T/2+5.5);ctx.lineTo(0,-T/2+1);ctx.lineTo(5,-T/2+5.5);ctx.closePath();ctx.fill();ctx.restore()}
+function tierPips(e,n,col){for(let i=0;i<n;i++){ctx.fillStyle=col;ctx.fillRect(e.x*T+T-8-i*4,e.y*T+T-7,2.5,3)}}
+function modPips(e){if(!e.mods||!e.mods.length)return;e.mods.forEach((m,i)=>{ctx.fillStyle=ITEMS[m].color;ctx.fillRect(e.x*T+5+i*4.5,e.y*T+T-6,3.5,3)})}
+const ST_COL={ok:'#6cd17a',idle:'#e6b84a',block:'#ef5b4c',nopower:'#5aa9f0',norecipe:'#8f978d'};
+function statusLight(e,t){if(!e.st)return;if(e.st==='nopower'&&Math.sin(t*8)<0)return;ctx.fillStyle=ST_COL[e.st];circ(ctx,e.x*T+6.5,e.y*T+6.5,2.4);ctx.fill()}
+function drawBelt(e,t,still){
+  const b=BUILD[e.type];ctx.save();ctx.translate(e.x*T+T/2,e.y*T+T/2);ctx.rotate(e.dir*Math.PI/2);
+  ctx.fillStyle='#1b1d1e';ctx.fillRect(-T/2+2,-T/2,T-4,T);
+  ctx.fillStyle='#2b2f31';ctx.fillRect(-T/2+5,-T/2,T-10,T);
+  ctx.save();ctx.beginPath();ctx.rect(-T/2+5,-T/2,T-10,T);ctx.clip();
+  const off=still?6:((t*b.speed)%0.5)*T;ctx.strokeStyle=b.chev;ctx.lineWidth=2.4;
+  for(let k=-1;k<3;k++){const yy=T/2-off-k*T/2;ctx.beginPath();ctx.moveTo(-6,yy+3);ctx.lineTo(0,yy-3);ctx.lineTo(6,yy+3);ctx.stroke()}
+  ctx.restore();
+  ctx.fillStyle=b.rail;ctx.fillRect(-T/2+2,-T/2,2.5,T);ctx.fillRect(T/2-4.5,-T/2,2.5,T);
+  ctx.restore();
+}
+function drawBeltItems(e){
+  const s=T*0.44;for(const it of e.items){const k=it.p-0.5;const x=e.x*T+T/2+DX[e.dir]*k*T,y=e.y*T+T/2+DY[e.dir]*k*T;ctx.drawImage(ICON[it.id],x-s/2,y-s/2,s,s)}
+}
+function drawMachine(e,t,icon){
+  const x=e.x*T,y=e.y*T,cx=x+T/2,cy=y+T/2;
+  switch(e.type){
+    case'miner':case'miner2':{const mk2=e.type==='miner2';base(e,mk2?'#34404e':'#3b4148','#16181b');const o=icon?1:ore[idx(e.x,e.y)];
+      ctx.save();ctx.translate(cx,cy);ctx.rotate(e.dir*Math.PI/2);ctx.fillStyle=mk2?'#4aa0e8':'#d9a43a';ctx.fillRect(-T/2+4,T/2-7,T-8,2.5);
+      ctx.fillStyle='#16181b';for(let i=0;i<4;i++)ctx.fillRect(-T/2+6+i*6,T/2-7,2.5,2.5);ctx.restore();
+      ctx.save();ctx.translate(cx,cy-1);ctx.fillStyle='#1d2126';circ(ctx,0,0,10);ctx.fill();ctx.rotate(e.anim);ctx.fillStyle=mk2?'#bcd4ec':'#9aa4b0';
+      for(let k=0;k<(mk2?4:3);k++){ctx.rotate(Math.PI*2/(mk2?4:3));ctx.beginPath();ctx.moveTo(0,-9.5);ctx.lineTo(3.2,-2);ctx.lineTo(-3.2,-2);ctx.closePath();ctx.fill()}
+      ctx.fillStyle=o?ORE_COL[o].c:'#666';circ(ctx,0,0,3.4);ctx.fill();ctx.restore();edgeMark(e,e.dir,'#f2a93b');break}
+    case'pump':{base(e,'#3a332c','#17130f');ctx.fillStyle='#0b0908';circ(ctx,cx+6,cy+6,5);ctx.fill();
+      const a=Math.sin(e.anim*0.8)*0.35;ctx.fillStyle='#55504a';ctx.fillRect(cx-3,cy-1,4,11);
+      ctx.save();ctx.translate(cx-1,cy-2);ctx.rotate(a);ctx.fillStyle='#d9a43a';ctx.fillRect(-11,-2.5,22,5);ctx.fillStyle='#8a8378';ctx.beginPath();ctx.moveTo(10,-5);ctx.lineTo(14,-1);ctx.lineTo(14,4);ctx.lineTo(9,3);ctx.closePath();ctx.fill();ctx.restore();
+      ctx.fillStyle='#c94';circ(ctx,cx-1,cy-2,2);ctx.fill();edgeMark(e,e.dir,'#f2a93b');break}
+    case'furnace':{base(e,'#5b3427','#22120d');ctx.strokeStyle='rgba(0,0,0,.28)';ctx.lineWidth=1;ctx.beginPath();
+      ctx.moveTo(x+4,y+12);ctx.lineTo(x+T-4,y+12);ctx.moveTo(x+4,y+21);ctx.lineTo(x+T-4,y+21);ctx.moveTo(x+12,y+4);ctx.lineTo(x+12,y+12);ctx.moveTo(x+20,y+12);ctx.lineTo(x+20,y+21);ctx.stroke();
+      ctx.fillStyle='#160a06';rr(cx-7,cy-2,14,10,3);ctx.fill();const h=e.heat||0;
+      if(h>0.02){const g=ctx.createRadialGradient(cx,cy+3,1,cx,cy+3,15);g.addColorStop(0,`rgba(255,200,100,${.95*h})`);g.addColorStop(.5,`rgba(255,120,40,${.5*h})`);g.addColorStop(1,'rgba(255,80,20,0)');ctx.fillStyle=g;ctx.fillRect(cx-15,cy-12,30,30)}
+      ctx.fillStyle='#2a1a14';ctx.fillRect(x+T-12,y+3,6,6);if(e.rin&&(icon||zoom>0.6))ctx.drawImage(ICON[e.rin],x+4,y+4,9,9);
+      modPips(e);edgeMark(e,e.dir,'#f2a93b');break}
+    case'furnace2':{base(e,'#3c4550','#14181c');ctx.fillStyle='#0c1014';rr(cx-8,cy-6,16,13,3);ctx.fill();const h=e.heat||0;
+      if(h>0.02){const g=ctx.createRadialGradient(cx,cy,1,cx,cy,14);g.addColorStop(0,`rgba(220,240,255,${.95*h})`);g.addColorStop(.5,`rgba(90,169,240,${.55*h})`);g.addColorStop(1,'rgba(90,169,240,0)');ctx.fillStyle=g;ctx.fillRect(cx-14,cy-14,28,28);
+        if(!icon){ctx.strokeStyle=`rgba(230,245,255,${.8*h})`;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(cx-6,cy);for(let k=1;k<5;k++)ctx.lineTo(cx-6+k*3,cy+(Math.random()-.5)*6);ctx.stroke()}}
+      if(e.rin&&(icon||zoom>0.6))ctx.drawImage(ICON[e.rin],x+4,y+4,9,9);modPips(e);edgeMark(e,e.dir,'#f2a93b');break}
+    case'assembler':case'assembler2':case'assembler3':{const tier=e.type==='assembler'?1:e.type==='assembler2'?2:3;
+      const pal=[null,['#2c3a4a','#111920','#6a84a2'],['#3d3150','#17111e','#8a76b2'],['#22443d','#0c1a17','#5cc0a4']][tier];base(e,pal[0],pal[1]);
+      ctx.save();ctx.translate(cx,cy);ctx.rotate(e.anim);ctx.fillStyle=pal[2];gearPath(ctx,11.5,8,2.6);ctx.fill();ctx.fillStyle=pal[0];circ(ctx,0,0,7);ctx.fill();ctx.restore();
+      if(e.recipe)ctx.drawImage(ICON[e.recipe],cx-7,cy-7,14,14);else{ctx.fillStyle='#8f978d';ctx.font='700 10px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('?',cx,cy+0.5)}
+      if(e.crafting){ctx.fillStyle='#000a';ctx.fillRect(x+6,y+T-7,T-12,2.5);ctx.fillStyle='#f2a93b';ctx.fillRect(x+6,y+T-7,(T-12)*Math.min(1,e.prog),2.5)}
+      if(tier>1)tierPips(e,tier,pal[2]);modPips(e);edgeMark(e,e.dir,'#f2a93b');break}
+    case'refinery':{base(e,'#334542','#101816');ctx.fillStyle='#5d7a74';rr(x+5,y+5,9,20,3);ctx.fill();rr(x+16,y+9,10,16,3);ctx.fill();
+      ctx.fillStyle='#a8c8c0';ctx.fillRect(x+6,y+8,2,14);ctx.fillRect(x+17,y+12,2,10);ctx.strokeStyle='#d9a43a';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x+14,y+12);ctx.lineTo(x+16,y+12);ctx.moveTo(x+14,y+20);ctx.lineTo(x+16,y+20);ctx.stroke();
+      if(e.recipe)ctx.drawImage(ICON[e.recipe],cx-2,cy-5,12,12);
+      if(e.crafting){ctx.fillStyle='#000a';ctx.fillRect(x+6,y+T-6,T-12,2.5);ctx.fillStyle='#f2a93b';ctx.fillRect(x+6,y+T-6,(T-12)*Math.min(1,e.prog),2.5)}
+      modPips(e);edgeMark(e,e.dir,'#f2a93b');break}
+    case'splitter':{base(e,'#3a3f45','#16181b');ctx.save();ctx.translate(cx,cy);ctx.rotate(e.dir*Math.PI/2);ctx.strokeStyle='#d9a43a';ctx.lineWidth=2.2;
+      ctx.beginPath();ctx.moveTo(0,6);ctx.lineTo(0,-6);ctx.moveTo(0,1);ctx.lineTo(-7,1);ctx.moveTo(0,1);ctx.lineTo(7,1);ctx.stroke();ctx.restore();
+      edgeMark(e,e.dir,'#f2a93b');edgeMark(e,(e.dir+3)%4,'#f2a93b');edgeMark(e,(e.dir+1)%4,'#f2a93b');break}
+    case'filter':{base(e,'#2e3f38','#111814');if(e.filter)ctx.drawImage(ICON[e.filter],cx-8,cy-8,16,16);else{ctx.strokeStyle='#8f978d';ctx.lineWidth=1.5;rr(cx-6,cy-6,12,12,2);ctx.stroke()}
+      edgeMark(e,e.dir,'#f2a93b');edgeMark(e,(e.dir+3)%4,'#6cd17a');break}
+    case'tunnel':{const out=e.role==='out';ctx.save();ctx.translate(cx,cy);ctx.rotate(e.dir*Math.PI/2);
+      ctx.fillStyle='#1b1d1e';ctx.fillRect(-T/2+2,-T/2,T-4,T);ctx.fillStyle='#2b2f31';ctx.fillRect(-T/2+5,-T/2,T-10,T);
+      ctx.strokeStyle='rgba(216,162,58,.5)';ctx.lineWidth=2.4;const oy=out?-T/4:T/4;ctx.beginPath();ctx.moveTo(-6,oy+3);ctx.lineTo(0,oy-3);ctx.lineTo(6,oy+3);ctx.stroke();
+      ctx.fillStyle='#d8a23a';ctx.fillRect(-T/2+2,-T/2,2.5,T);ctx.fillRect(T/2-4.5,-T/2,2.5,T);
+      const y0=out?0:-T/2;ctx.fillStyle='#4f5861';rr(-T/2+1,y0,T-2,T/2,4);ctx.fill();ctx.fillStyle='rgba(255,255,255,.1)';ctx.fillRect(-T/2+4,y0+2,T-8,1.5);
+      ctx.fillStyle='#070707';ctx.beginPath();ctx.ellipse(0,out?1:-1,9,4.5,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#d9a43a';ctx.fillRect(-T/2+3,out?T/2-4:-T/2+2,T-6,2);
+      ctx.restore();if(!icon&&!e.pair){ctx.fillStyle='#ef5b4c';ctx.font='800 11px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('!',x+T-7,y+T-8)}break}
+    case'depot':{base(e,'#3b3326','#17130c');ctx.strokeStyle='#d9a43a';ctx.lineWidth=1.6;ctx.setLineDash([3,3]);circ(ctx,cx,cy,10);ctx.stroke();ctx.setLineDash([]);
+      if(e.filter)ctx.drawImage(ICON[e.filter],cx-8,cy-8,16,16);else{ctx.fillStyle='#8f978d';ctx.font='700 10px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('?',cx,cy+.5)}
+      edgeMark(e,e.dir,'#f2a93b');break}
+    case'chest':{base(e,'#6a5232','#281d10');ctx.strokeStyle='rgba(0,0,0,.3)';ctx.lineWidth=1;ctx.beginPath();for(let k=1;k<3;k++){ctx.moveTo(x+4,y+4+k*8);ctx.lineTo(x+T-4,y+4+k*8)}ctx.stroke();
+      ctx.strokeStyle='#3a2a16';ctx.lineWidth=2;rr(x+4,y+4,T-8,T-8,2);ctx.stroke();
+      const f=(e.buf?e.buf.length:0)/400;ctx.fillStyle='#0008';ctx.fillRect(x+6,y+T-8,T-12,3);ctx.fillStyle='#f2a93b';ctx.fillRect(x+6,y+T-8,(T-12)*f,3);
+      if(e.buf&&e.buf.length)ctx.drawImage(ICON[e.buf[0]],cx-6,cy-8,12,12);edgeMark(e,e.dir,'#f2a93b');break}
+    case'generator':{base(e,'#2d3136','#111316');const l=e.load||0;
+      if(l>0){const g=ctx.createRadialGradient(cx,cy,1,cx,cy,13);g.addColorStop(0,`rgba(255,110,60,${.55*l+.15})`);g.addColorStop(1,'rgba(255,60,30,0)');ctx.fillStyle=g;ctx.fillRect(cx-13,cy-13,26,26)}
+      ctx.save();ctx.translate(cx,cy);ctx.rotate(e.anim);ctx.fillStyle='#a3adb8';for(let k=0;k<4;k++){ctx.rotate(Math.PI/2);ctx.beginPath();ctx.ellipse(0,-5.5,2.8,5.5,0.5,0,Math.PI*2);ctx.fill()}
+      ctx.fillStyle='#2d3136';circ(ctx,0,0,2.6);ctx.fill();ctx.restore();
+      ctx.fillStyle='#0009';ctx.fillRect(x+T-7,y+6,3,T-12);ctx.fillStyle='#e6b84a';const fh=(T-12)*Math.min(1,(e.fq?e.fq.length:0)/20);ctx.fillRect(x+T-7,y+T-6-fh,3,fh);break}
+    case'wind':{ctx.fillStyle='#1a1d20';circ(ctx,cx,cy,9);ctx.fill();ctx.fillStyle='#8a929b';circ(ctx,cx,cy,6.5);ctx.fill();
+      ctx.save();ctx.translate(cx,cy);ctx.rotate(e.anim);for(let k=0;k<3;k++){ctx.rotate(Math.PI*2/3);ctx.fillStyle='#000a';ctx.beginPath();ctx.ellipse(1.5,-13,3.4,13,0.12,0,Math.PI*2);ctx.fill();ctx.fillStyle='#e8ecef';ctx.beginPath();ctx.ellipse(0,-14,3,13,0.12,0,Math.PI*2);ctx.fill();ctx.fillStyle='#d9534a';ctx.beginPath();ctx.ellipse(0.4,-25,2,2.6,0.12,0,Math.PI*2);ctx.fill()}
+      ctx.fillStyle='#c4cad0';circ(ctx,0,0,3.2);ctx.fill();ctx.restore();break}
+    case'solar':{base(e,'#1c2a46','#0a1120');ctx.fillStyle=icon?'#2f4f86':mix('#14223e','#2f4f86',sun);for(let i=0;i<3;i++)for(let j=0;j<3;j++)ctx.fillRect(x+5+i*7.6,y+5+j*7.6,6.6,6.6);
+      const gl=(Math.sin(t*0.8+e.x*0.7+e.y*0.3)+1)/2*(icon?1:sun);ctx.fillStyle=`rgba(200,230,255,${0.06+gl*0.18})`;ctx.beginPath();ctx.moveTo(x+5,y+T-5);ctx.lineTo(x+14,y+5);ctx.lineTo(x+19,y+5);ctx.lineTo(x+10,y+T-5);ctx.fill();break}
+    case'accumulator':{base(e,'#28332d','#0e1310');const f=(e.charge||0)/BUILD.accumulator.store;
+      for(let k=0;k<3;k++){const bx=x+6+k*7.3;ctx.fillStyle='#14191a';rr(bx,y+6,5.5,T-12,1.5);ctx.fill();const hh=(T-14)*f;ctx.fillStyle=f>0.2?'#5aa9f0':'#e6b84a';ctx.fillRect(bx+1,y+T-7-hh,3.5,hh);ctx.fillStyle='#c8ccd2';ctx.fillRect(bx+1.5,y+4.5,2.5,2)}break}
+    case'reactor':{base(e,'#2a3a3f','#0d1416');const l=e.load||0;ctx.strokeStyle='#5d7a80';ctx.lineWidth=2;circ(ctx,cx,cy,10);ctx.stroke();
+      const g=ctx.createRadialGradient(cx,cy,1,cx,cy,13);g.addColorStop(0,`rgba(140,255,200,${.25+.7*l})`);g.addColorStop(.6,`rgba(60,220,170,${.15+.4*l})`);g.addColorStop(1,'rgba(60,220,170,0)');ctx.fillStyle=g;circ(ctx,cx,cy,13);ctx.fill();
+      ctx.fillStyle='#0d1416';for(let k=0;k<4;k++){ctx.save();ctx.translate(cx,cy);ctx.rotate(k*Math.PI/2+Math.PI/4);ctx.fillRect(-1.5,-11,3,6);ctx.restore()}
+      for(let k=0;k<4;k++){ctx.fillStyle=k<(e.fq?e.fq.length:0)?'#5fd35a':'#1a2426';ctx.fillRect(x+6+k*5.5,y+T-6,4,2.5)}break}
+  }
+  if(!icon&&e.type!=='wind')statusLight(e,t);
+}
+function drawHub(h,t){
+  const x=(h.x-1)*T,y=(h.y-1)*T,S=3*T,cx=h.x*T+T/2,cy=h.y*T+T/2;
+  ctx.fillStyle='#0f1214';rr(x+2,y+2,S-4,S-4,10);ctx.fill();
+  ctx.fillStyle='#2a3036';rr(x+6,y+6,S-12,S-12,8);ctx.fill();
+  ctx.strokeStyle='#d9a43a';ctx.lineWidth=3;ctx.setLineDash([6,6]);rr(x+9,y+9,S-18,S-18,6);ctx.stroke();ctx.setLineDash([]);
+  const p=h.pulse;const g=ctx.createRadialGradient(cx,cy,2,cx,cy,34);g.addColorStop(0,`rgba(242,169,59,${.35+.55*p})`);g.addColorStop(1,'rgba(242,169,59,0)');ctx.fillStyle=g;circ(ctx,cx,cy,34);ctx.fill();
+  ctx.save();ctx.translate(cx,cy);ctx.rotate(h.rot);ctx.strokeStyle=`rgba(242,169,59,${.5+.4*p})`;ctx.lineWidth=2.5;ctx.setLineDash([9,7]);circ(ctx,0,0,24+p*3);ctx.stroke();ctx.setLineDash([]);ctx.restore();
+  ctx.fillStyle='#14181b';circ(ctx,cx,cy,15);ctx.fill();
+  if(h.lastItem&&!launch)ctx.drawImage(ICON[h.lastItem],cx-10,cy-10,20,20);
+  ctx.fillStyle='#ece6d6';ctx.font='800 11px "Saira Condensed",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('HUB',cx,y+S-15);
+}
+function mouseTile(){const w=toWorld(mouse.x,mouse.y);return[Math.floor(w.x/T),Math.floor(w.y/T)]}
+function drawGhost(t){
+  if(!mouse.in||drag&&(drag.mode==='pan'||drag.mode==='rect'))return;
+  const[tx,ty]=mouseTile();
+  if(bpSel!==null&&blueprints[bpSel]){
+    const{cells,w,h}=bpCells(blueprints[bpSel],bpRot),ox=tx-Math.floor(w/2),oy=ty-Math.floor(h/2);
+    ctx.save();ctx.globalAlpha=.5;for(const c of cells){const f=fakeEnt(c.t,c.d);f.x=ox+c.dx;f.y=oy+c.dy;f.recipe=c.r||null;f.filter=c.f||null;f.anim=t*2;f.load=0;f.charge=0;if(isBelt(c.t))drawBelt(f,t);else drawMachine(f,t,true)}ctx.restore();
+    for(const c of cells){const x=ox+c.dx,y=oy+c.dy,st=inb(x,y)?canPlace(c.t,x,y):'off';if(st!=='ok'&&st!=='same'){ctx.fillStyle='rgba(239,91,76,.35)';ctx.fillRect(x*T,y*T,T,T)}}
+    ctx.strokeStyle='#5aa9f0';ctx.lineWidth=2/zoom+.5;ctx.setLineDash([6,5]);ctx.strokeRect(ox*T,oy*T,w*T,h*T);ctx.setLineDash([]);return}
+  if(!sel||!inb(tx,ty))return;
+  const c=canPlace(sel,tx,ty),okc=(c==='ok'||c==='upgrade'||c==='same')&&canAfford(BUILD[sel].cost);
+  ctx.save();ctx.globalAlpha=.55;const f=fakeEnt(sel,rot);f.x=tx;f.y=ty;f.anim=t*2;f.load=0;f.charge=0;f.recipe=pipRecipe;f.filter=pipFilter;f.mods=pipMods||[];
+  if(sel==='tunnel'){f.role=predictTunnelRole(tx,ty,rot);if(f.role==='in'){ctx.fillStyle='rgba(216,162,58,.10)';for(let k=1;k<=TUN_RANGE;k++)ctx.fillRect((tx+DX[rot]*k)*T,(ty+DY[rot]*k)*T,T,T)}}
+  if(isBelt(sel))drawBelt(f,t);else drawMachine(f,t,true);ctx.restore();
+  ctx.strokeStyle=okc?'#6cd17a':'#ef5b4c';ctx.lineWidth=2/zoom+0.5;rr(tx*T+1,ty*T+1,T-2,T-2,4);ctx.stroke();
+}
+const TOOL_COL={copy:'#5aa9f0',clear:'#ef5b4c',upgrade:'#6cd17a'};
+function render(now){
+  const t=now/1000;
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#0b0d0c';ctx.fillRect(0,0,cw,ch);
+  ctx.setTransform(dpr*zoom,0,0,dpr*zoom,dpr*(cw/2-cam.x*zoom),dpr*(ch/2-cam.y*zoom));
+  const x0=Math.floor((cam.x-cw/2/zoom)/T)-1,x1=Math.ceil((cam.x+cw/2/zoom)/T)+1,y0=Math.floor((cam.y-ch/2/zoom)/T)-1,y1=Math.ceil((cam.y+ch/2/zoom)/T)+1;
+  for(let cy=Math.floor(y0/CH);cy<=Math.floor(y1/CH);cy++)for(let cx=Math.floor(x0/CH);cx<=Math.floor(x1/CH);cx++){
+    if(cx<-1||cy<-1||cx>W/CH||cy>H/CH)continue;ctx.drawImage(getChunk(cx,cy),cx*CH*T,cy*CH*T)}
+  ctx.strokeStyle='#d9a43a55';ctx.lineWidth=3;ctx.strokeRect(0,0,W*T,H*T);
+  const belts=[],mach=[],tall=[];
+  for(let y=Math.max(0,y0);y<=Math.min(H-1,y1);y++)for(let x=Math.max(0,x0);x<=Math.min(W-1,x1);x++){const e=grid[idx(x,y)];if(!e||e.type==='hub')continue;(isBelt(e.type)?belts:e.type==='wind'?tall:mach).push(e)}
+  for(const b of belts)drawBelt(b,t);
+  if(zoom>0.32)for(const b of belts)drawBeltItems(b);
+  for(const m of mach)drawMachine(m,t);
+  if(zoom>0.4){ctx.strokeStyle='rgba(216,162,58,.35)';ctx.lineWidth=2;ctx.setLineDash([4,5]);ctx.lineDashOffset=-t*20;
+    for(const m of mach)if(m.type==='tunnel'&&m.role==='in'&&m.pair){ctx.beginPath();ctx.moveTo(m.x*T+T/2+DX[m.dir]*8,m.y*T+T/2+DY[m.dir]*8);ctx.lineTo(m.pair.x*T+T/2-DX[m.dir]*8,m.pair.y*T+T/2-DY[m.dir]*8);ctx.stroke()}
+    ctx.setLineDash([]);ctx.lineDashOffset=0}
+  drawHub(hub,t);
+  for(const m of tall)drawMachine(m,t);
+  for(const p of particles){const a=Math.max(0,p.life/p.max);ctx.fillStyle=p.c.replace(/,1\)$/,`,${p.smoke?a*.35:a})`);circ(ctx,p.x,p.y,p.r+(p.grow?(1-a)*p.grow:0));ctx.fill()}
+  // night
+  const dark=(1-sun)*0.6;
+  if(dark>0.01){ctx.fillStyle=`rgba(8,12,34,${dark})`;ctx.fillRect(x0*T,y0*T,(x1-x0+1)*T,(y1-y0+1)*T);
+    ctx.globalCompositeOperation='lighter';
+    const glow=(x,y,r,col,a)=>{const g=ctx.createRadialGradient(x,y,1,x,y,r);g.addColorStop(0,col.replace('A',a.toFixed(3)));g.addColorStop(1,col.replace('A','0'));ctx.fillStyle=g;ctx.fillRect(x-r,y-r,r*2,r*2)};
+    for(const m of mach){const cx=m.x*T+T/2,cy=m.y*T+T/2;
+      if((m.type==='furnace')&&m.heat>0.05)glow(cx,cy,40,'rgba(255,140,50,A)',m.heat*dark*.6);
+      else if(m.type==='furnace2'&&m.heat>0.05)glow(cx,cy,40,'rgba(110,180,255,A)',m.heat*dark*.6);
+      else if(m.type==='generator'&&m.load>0)glow(cx,cy,36,'rgba(255,110,60,A)',m.load*dark*.6);
+      else if(m.type==='reactor')glow(cx,cy,70,'rgba(90,255,180,A)',(0.2+m.load)*dark*.55);
+      else if(m.st==='ok'&&!isBelt(m.type)&&m.type!=='solar')glow(cx,cy,16,'rgba(255,220,150,A)',dark*.18)}
+    glow(hub.x*T+T/2,hub.y*T+T/2,90,'rgba(242,169,59,A)',dark*(.35+.3*hub.pulse));
+    ctx.globalCompositeOperation='source-over'}
+  if(inspected){ctx.strokeStyle='#f2a93b';ctx.lineWidth=2;ctx.setLineDash([5,4]);if(inspected.type==='hub')rr((hub.x-1)*T-2,(hub.y-1)*T-2,3*T+4,3*T+4,10);else rr(inspected.x*T-1,inspected.y*T-1,T+2,T+2,6);ctx.stroke();ctx.setLineDash([])}
+  if(mouse.in&&!sel&&bpSel===null){const[tx,ty]=mouseTile();if(inb(tx,ty)){ctx.strokeStyle=tool?TOOL_COL[tool]:'rgba(236,230,214,.35)';ctx.lineWidth=1.5;rr(tx*T+1,ty*T+1,T-2,T-2,4);ctx.stroke()}}
+  drawGhost(t);
+  if(drag&&drag.mode==='rect'){const ax=Math.min(drag.x0,drag.x1),ay=Math.min(drag.y0,drag.y1),bw=Math.abs(drag.x1-drag.x0)+1,bh=Math.abs(drag.y1-drag.y0)+1,col=TOOL_COL[drag.tool];
+    ctx.fillStyle=col+'22';ctx.fillRect(ax*T,ay*T,bw*T,bh*T);ctx.strokeStyle=col;ctx.lineWidth=2/zoom+.5;ctx.setLineDash([8,5]);ctx.strokeRect(ax*T,ay*T,bw*T,bh*T);ctx.setLineDash([]);
+    ctx.fillStyle=col;ctx.font=`700 ${13/zoom}px "IBM Plex Mono",monospace`;ctx.textAlign='left';ctx.textBaseline='bottom';ctx.fillText(`${bw}×${bh}`,ax*T,ay*T-3/zoom)}
+  if(mining&&mining.t>0){const cx=mining.x*T+T/2,cy=mining.y*T+T/2;ctx.strokeStyle='#f2a93b';ctx.lineWidth=3;ctx.beginPath();ctx.arc(cx,cy,11,-Math.PI/2,-Math.PI/2+Math.PI*2*mining.t/0.45);ctx.stroke()}
+  if(launch){const cx=hub.x*T+T/2,cy=hub.y*T+T/2-launch.t*launch.t*40;ctx.drawImage(ICON.rocket_part,cx-26,cy-34,52,52)}
+}
+
+// ================== UPDATE LOOP ==================
+function update(dt){
+  playTime+=dt;
+  const ph=(playTime%DAY)/DAY;sun=Math.max(0,Math.min(1,0.55+0.85*Math.sin(ph*Math.PI*2)));
+  wind=Math.max(0.08,Math.min(1,0.55+0.3*Math.sin(playTime/37)+0.2*Math.sin(playTime/11.3+1.7)));
+  const pw=power.sat;
+  for(let i=0;i<ents.length;i++){const e=ents[i];const c=BUILD[e.type]?BUILD[e.type].cat:'hub';
+    switch(c){case'belt':updBelt(e,dt);break;case'miner':updMiner(e,dt,pw);break;case'smelter':updFurnace(e,dt,pw);break;case'crafter':updCrafter(e,dt,pw);break;
+      case'logi':if(e.type==='splitter')updSplit(e);else if(e.type==='filter')updFilter(e);else if(e.type==='tunnel')updTunnel(e,dt);else if(e.type==='depot')updDepot(e,dt);else updChest(e,dt);break;
+      case'hub':e.pulse=Math.max(0,e.pulse-dt*2.5);e.rot+=dt*(0.4+e.pulse*1.5);break}}
+  powerStep(dt);researchStep(dt);
+  if(mining){if(mouse.down&&mouse.btn===0){const[tx,ty]=mouseTile();if(tx===mining.x&&ty===mining.y){mining.t+=dt;if(mining.t>=0.45){mining.t=0;const o=ore[idx(mining.x,mining.y)];if(o&&o!==6){addInv(ORE_ITEM[o]);spark(mining.x*T+T/2,mining.y*T+T/2,ORE_COL[o].c,6);blip(300+Math.random()*80,0.05,'square',0.03)}else{mining=null;toast('Oil needs a Pumpjack.')}}}else mining=null}else mining=null}
+  bucketT+=dt;if(bucketT>=1){bucketT-=1;buckets.push({m:curMade,d:curDel});if(buckets.length>60)buckets.shift();curMade={};curDel={}}
+  for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;if(p.life<=0)particles.splice(i,1)}
+  if(launch){launch.t+=dt;const cx=hub.x*T+T/2,cy=hub.y*T+T/2-launch.t*launch.t*40+14;for(let k=0;k<3;k++)particles.push({x:cx+(Math.random()-.5)*10,y:cy,vx:(Math.random()-.5)*40,vy:40+Math.random()*60,life:.7,max:.7,r:3+Math.random()*3,c:Math.random()<.5?'rgba(255,190,90,1)':'rgba(255,110,50,1)'});
+    if(launch.t>5.5&&!launch.shown){launch.shown=true;showVictory()}}
+}
+let last=performance.now(),uiT=0,miniT=0,slowT=0,simClock=0;
+function frame(now){
+  const dt=Math.min(0.05,(now-last)/1000);last=now;
+  const sp=520/zoom*dt;if(keys.has('w')||keys.has('arrowup'))cam.y-=sp;if(keys.has('s')||keys.has('arrowdown'))cam.y+=sp;if(keys.has('a')||keys.has('arrowleft'))cam.x-=sp;if(keys.has('d')||keys.has('arrowright'))cam.x+=sp;
+  cam.x=Math.max(-200,Math.min(W*T+200,cam.x));cam.y=Math.max(-200,Math.min(H*T+200,cam.y));
+  for(let s=0;s<simSpeed;s++){update(dt);simClock+=dt}
+  render(simClock*1000);
+  if(simSpeed===0){ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='rgba(11,13,12,.25)';ctx.fillRect(0,0,cw,ch);ctx.fillStyle='#ece6d6';ctx.font='800 28px "Saira Condensed",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('PAUSED',cw/2,ch*0.32)}
+  uiT+=dt;if(uiT>0.2){uiT=0;updateUI()}
+  slowT+=dt;if(slowT>1){slowT=0;renderObjectives();if(!statsEl.hidden)renderStats()}
+  miniT+=dt;if(miniT>0.5){miniT=0;drawMini()}
+  requestAnimationFrame(frame);
+}
+
+// ================== INPUT ==================
+function toWorld(mx,my){return{x:(mx-cw/2)/zoom+cam.x,y:(my-ch/2)/zoom+cam.y}}
+function tileAt(mx,my){const w=toWorld(mx,my);return[Math.floor(w.x/T),Math.floor(w.y/T)]}
+let spaceDown=false;
+function clearModes(){sel=null;tool=null;bpSel=null;pipRecipe=null;pipFilter=null;pipMods=null;refreshHotbar();updateModebar()}
+function setTool(t){const was=tool===t;clearModes();if(!was){tool=t;closeInspector()}refreshHotbar();updateModebar()}
+function setSel(t){const keepPip=false;clearModes();sel=t;if(t)closeInspector();refreshHotbar();updateModebar()}
+function setBP(i){clearModes();bpSel=i;bpRot=0;closeInspector();refreshHotbar();updateModebar()}
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+cv.addEventListener('pointerdown',ev=>{
+  cv.setPointerCapture(ev.pointerId);mouse.down=true;mouse.btn=ev.button;mouse.x=ev.clientX;mouse.y=ev.clientY;hideTip();
+  const[tx,ty]=tileAt(ev.clientX,ev.clientY);
+  if(ev.button===1||(ev.button===0&&spaceDown)){drag={mode:'pan',sx:ev.clientX,sy:ev.clientY,cx:cam.x,cy:cam.y};return}
+  if(ev.button===2){
+    if(ev.shiftKey){drag={mode:'rect',tool:'clear',x0:tx,y0:ty,x1:tx,y1:ty};return}
+    if(tool||bpSel!==null){clearModes();return}
+    drag={mode:'del',lx:tx,ly:ty};removeAt(tx,ty);return}
+  if(ev.button!==0)return;
+  if(tool){drag={mode:'rect',tool,x0:tx,y0:ty,x1:tx,y1:ty};return}
+  if(bpSel!==null){pasteBP(tx,ty);drag={mode:'paste'};return}
+  if(sel){if(!unlockedB(sel)){toast('Research needed first.');return}const e=place(sel,tx,ty,rot);drag={mode:'place',lx:tx,ly:ty,placed:e};return}
+  const e=at(tx,ty);
+  if(e){drag={mode:'click',sx:ev.clientX,sy:ev.clientY,e};return}
+  if(inb(tx,ty)&&ore[idx(tx,ty)]){mining={x:tx,y:ty,t:0};drag={mode:'mine'};closeInspector();return}
+  closeInspector();drag={mode:'pan',sx:ev.clientX,sy:ev.clientY,cx:cam.x,cy:cam.y};
+});
+function stepLine(x0,y0,x1,y1,cb){let x=x0,y=y0,guard=0;while((x!==x1||y!==y1)&&guard++<400){const dx=x1-x,dy=y1-y;let d;if(Math.abs(dx)>=Math.abs(dy)){x+=Math.sign(dx);d=dx>0?1:3}else{y+=Math.sign(dy);d=dy>0?2:0}cb(x,y,d)}}
+cv.addEventListener('pointermove',ev=>{
+  mouse.x=ev.clientX;mouse.y=ev.clientY;mouse.in=true;
+  if(!drag)return;
+  if(drag.mode==='pan'){cam.x=drag.cx-(ev.clientX-drag.sx)/zoom;cam.y=drag.cy-(ev.clientY-drag.sy)/zoom;return}
+  if(drag.mode==='click'){if(Math.hypot(ev.clientX-drag.sx,ev.clientY-drag.sy)>6)drag={mode:'pan',sx:ev.clientX,sy:ev.clientY,cx:cam.x,cy:cam.y};return}
+  const[tx,ty]=tileAt(ev.clientX,ev.clientY);
+  if(drag.mode==='rect'){drag.x1=tx;drag.y1=ty;return}
+  if(tx===drag.lx&&ty===drag.ly)return;
+  if(drag.mode==='del'){stepLine(drag.lx,drag.ly,tx,ty,(x,y)=>removeAt(x,y));drag.lx=tx;drag.ly=ty;return}
+  if(drag.mode==='place'){
+    stepLine(drag.lx,drag.ly,tx,ty,(x,y,d)=>{
+      if(isBelt(sel)){if(drag.placed&&isBelt(drag.placed.type)&&drag.placed.x===x-DX[d]&&drag.placed.y===y-DY[d])drag.placed.dir=d;rot=d}
+      drag.placed=place(sel,x,y,rot,true)||(at(x,y)&&at(x,y).type===sel?at(x,y):null);
+    });drag.lx=tx;drag.ly=ty;
+  }
+});
+cv.addEventListener('pointerup',()=>{
+  if(drag&&drag.mode==='click')openInspector(drag.e);
+  if(drag&&drag.mode==='rect')applyRect(drag.tool,drag.x0,drag.y0,drag.x1,drag.y1);
+  drag=null;mouse.down=false;mining=null;
+});
+cv.addEventListener('pointerleave',()=>{mouse.in=false;hoverEl.hidden=true});
+cv.addEventListener('wheel',ev=>{ev.preventDefault();const before=toWorld(ev.clientX,ev.clientY);zoom=Math.max(0.25,Math.min(3,zoom*Math.pow(1.0015,-ev.deltaY)));const after=toWorld(ev.clientX,ev.clientY);cam.x+=before.x-after.x;cam.y+=before.y-after.y},{passive:false});
+addEventListener('keydown',ev=>{
+  if(!gameReady)return;
+  const tg=ev.target.tagName;if(tg==='INPUT'||tg==='TEXTAREA')return;
+  const k=ev.key.toLowerCase();
+  if(k===' '){spaceDown=true;ev.preventDefault()}
+  if(k==='escape'){if(!modalEl.hidden&&!(launch&&!launch.shown))closeModal();else if(sel||tool||bpSel!==null)clearModes();else{closeInspector();invEl.hidden=true;statsEl.hidden=true;libEl.hidden=true}return}
+  if(!modalEl.hidden){if(k==='t'||k==='h')closeModal();return}
+  if((ev.ctrlKey||ev.metaKey)&&k==='c'){ev.preventDefault();setTool('copy');return}
+  if((ev.ctrlKey||ev.metaKey)&&k==='v'){ev.preventDefault();if(blueprints.length)setBP(0);else toast('No blueprints yet. Press C and drag a box.');return}
+  if(ev.ctrlKey||ev.metaKey)return;
+  keys.add(k);
+  const gi='1234567'.indexOf(ev.key);
+  if(gi>=0){const g=GROUPS[gi].filter(unlockedB);if(!g.length){toast(`Research needed for ${BUILD[GROUPS[gi][0]].name}.`);return}
+    const cur=g.indexOf(sel);if(cur>=0&&g.length===1){setSel(null);return}setSel(g[(cur+1)%g.length]);return}
+  if(k==='r'){if(bpSel!==null){bpRot=(bpRot+(ev.shiftKey?3:1))%4;blip(520,0.03);return}const[tx,ty]=mouseTile();const e=!sel&&at(tx,ty);if(e&&e.type!=='hub'){e.dir=(e.dir+(ev.shiftKey?3:1))%4;if(e.type==='tunnel')retunnel();blip(520,0.03)}else rot=(rot+(ev.shiftKey?3:1))%4;return}
+  if(k==='q'){const[tx,ty]=mouseTile();const e=at(tx,ty);if(e&&e.type!=='hub'){pipette(e)}else clearModes();return}
+  if(k==='c'){setTool('copy');return}
+  if(k==='u'){setTool('upgrade');return}
+  if(k==='x'){setTool('clear');return}
+  if(k==='b'){toggleDrawer(libEl);return}
+  if(k==='i'||k==='e'){toggleDrawer(invEl);return}
+  if(k==='p'){toggleDrawer(statsEl);return}
+  if(k==='t'){openTech();return}
+  if(k==='h'||k==='f1'){ev.preventDefault();openHelp();return}
+  if(k===','||k==='.'){const i=SPEEDS.indexOf(simSpeed);setSpeed(SPEEDS[Math.max(0,Math.min(SPEEDS.length-1,i+(k==='.'?1:-1)))]);return}
+  if(k==='m'){muted=!muted;toast(muted?'Sound off':'Sound on');return}
+  if(k==='delete'||k==='backspace'){const[tx,ty]=mouseTile();removeAt(tx,ty);return}
+  if(k==='f'){const[tx,ty]=mouseTile();const e=at(tx,ty);if(e&&BUILD[e.type]&&BUILD[e.type].fuels)feed(e);return}
+});
+addEventListener('keyup',ev=>{const k=ev.key.toLowerCase();keys.delete(k);if(k===' ')spaceDown=false});
+addEventListener('blur',()=>{keys.clear();spaceDown=false});
+const SPEEDS=[0,1,2,4];
+function setSpeed(n){simSpeed=n;document.querySelectorAll('#spd .btn').forEach(b=>b.classList.toggle('on',+b.dataset.n===n));renderObjectives()}
+function pipette(e){clearModes();sel=e.type;rot=e.dir;pipRecipe=e.recipe||null;pipFilter=e.filter||null;pipMods=e.mods&&e.mods.length?[...e.mods]:null;closeInspector();refreshHotbar();updateModebar()}
+function feed(e){const b=BUILD[e.type];let n=0;for(const f of [...b.fuels].reverse()){while(e.fq.length<b.fmax&&(inv[f]||0)>0){inv[f]--;e.fq.push(f);n++}}if(n){blip(500,0.06,'triangle');toast(`Added ${n} fuel`)}else toast(`No ${b.fuels.map(N).join(' or ')} in inventory.`)}
+
+// ================== UI ==================
+const $=id=>document.getElementById(id);
+const hotEl=$('hotbar'),tipEl=$('tip'),objEl=$('obj'),hoverEl=$('hover'),inspEl=$('inspector'),invEl=$('invPanel'),statsEl=$('statsPanel'),libEl=$('libPanel'),modalEl=$('modal'),sheetEl=$('sheet'),miniEl=$('mini'),modeEl=$('modebar');
+function toast(m,big){const n=performance.now();if(m===lastToast.m&&n-lastToast.t<1500)return;lastToast={m,t:n};const d=document.createElement('div');d.className='toast panel'+(big?' big':'');d.textContent=m;$('toasts').appendChild(d);setTimeout(()=>d.remove(),big?3200:2400);while($('toasts').children.length>4)$('toasts').firstChild.remove()}
+function costHTML(c,showHave=true){return'<div class="costs">'+Object.keys(c).map(k=>{const h=inv[k]||0;return`<span class="cost ${h>=c[k]?'ok':'no'}" title="${N(k)}">${img(k,16)}${showHave?fmt(Math.min(h,99999))+'/':''}${fmt(c[k])}</span>`}).join('')+'</div>'}
+function buildHotbar(){
+  hotEl.innerHTML=GROUPS.map((g,gi)=>`<div class="grp">${g.map((t,i)=>`<button class="slot" data-b="${t}" aria-label="${BUILD[t].name}"><span class="k">${i===0?gi+1:''}</span><canvas width="64" height="64"></canvas><span class="lock"></span></button>`).join('')}</div>`).join('')
+   +`<div class="grp">${TOOLS.map(t=>`<button class="slot" data-tool="${t.id}" aria-label="${t.name}"><span class="k">${t.key}</span><canvas width="64" height="64"></canvas></button>`).join('')}</div>`;
+  hotEl.querySelectorAll('.slot').forEach(s=>{const key=s.dataset.b?s.dataset.b:'tool_'+s.dataset.tool;s.querySelector('canvas').getContext('2d').drawImage(BICON[key],0,0);
+    s.addEventListener('click',()=>{if(s.dataset.tool){const t=s.dataset.tool;if(t==='lib')toggleDrawer(libEl);else setTool(t);return}
+      const t=s.dataset.b;if(!unlockedB(t)){toast(`Research ${TECH_BY[BUILD[t].tech].name} to unlock.`);return}if(sel===t)clearModes();else setSel(t)});
+    s.addEventListener('mouseenter',()=>showTip(s));s.addEventListener('mouseleave',hideTip)});
+  refreshHotbar(true);
+}
+let hotSig='';
+function refreshHotbar(force){
+  const sig=HOT.map(t=>(unlockedB(t)?1:0)+(canAfford(BUILD[t].cost)?2:0)+(sel===t?4:0)).join('')+tool+(libEl&&!libEl.hidden);if(sig===hotSig&&!force)return;hotSig=sig;
+  hotEl.querySelectorAll('.slot').forEach(s=>{if(s.dataset.tool){s.classList.toggle('sel',tool===s.dataset.tool||(s.dataset.tool==='lib'&&!libEl.hidden));return}
+    const t=s.dataset.b;s.classList.toggle('locked',!unlockedB(t));s.classList.toggle('poor',unlockedB(t)&&!canAfford(BUILD[t].cost));s.classList.toggle('sel',sel===t)});
+}
+let tipFor=null;
+function showTip(s){tipFor=s;
+  if(s.dataset.tool){const t=TOOLS.find(x=>x.id===s.dataset.tool);tipEl.innerHTML=`<div class="t">${t.name} <kbd>${t.key}</kbd></div><p>${t.desc}</p>`}
+  else{const t=s.dataset.b,b=BUILD[t];
+  tipEl.innerHTML=`<div class="t">${b.name}</div><p>${b.desc}</p>${costHTML(b.cost)}${b.power?`<p style="margin:8px 0 0">Draws ${fmtW(b.power)} while working.${b.slots?` ${b.slots} module slot${b.slots>1?'s':''}.`:''}</p>`:''}${b.cap?`<p style="margin:8px 0 0">Supplies up to ${fmtW(b.cap)}.</p>`:''}${b.store?`<p style="margin:8px 0 0">Stores ${fmt(b.store*30/1000)} MJ, ${fmtW(b.rate)} in or out.</p>`:''}${b.next&&unlockedB(b.next)?`<p style="margin:8px 0 0;color:var(--good)">Upgrades to ${BUILD[b.next].name}</p>`:''}${!unlockedB(t)?`<p style="margin:8px 0 0;color:var(--warn)">Requires ${TECH_BY[b.tech].name}</p>`:''}`}
+  tipEl.hidden=false;const r=s.getBoundingClientRect();tipEl.style.left=Math.max(8,Math.min(innerWidth-268,r.left+r.width/2-130))+'px';tipEl.style.top=Math.max(8,r.top-tipEl.offsetHeight-8)+'px'}
+function hideTip(){tipEl.hidden=true;tipFor=null}
+function updateModebar(){
+  let h='';
+  if(tool==='copy')h=`<span class="m" style="color:var(--blue)">Copy area</span><span class="d">Drag a box over buildings. Recipes and modules come along.</span>`;
+  else if(tool==='upgrade')h=`<span class="m" style="color:var(--good)">Upgrade area</span><span class="d">Drag a box. Everything inside moves up one tier if researched.</span>`;
+  else if(tool==='clear')h=`<span class="m" style="color:var(--bad)">Clear area</span><span class="d">Drag a box to remove everything inside, with full refund.</span>`;
+  else if(bpSel!==null&&blueprints[bpSel]){const bp=blueprints[bpSel];h=`<span class="m" style="color:var(--blue)">${esc(bp.name)}</span><span class="d">Click to paste · <kbd>R</kbd> rotate · <kbd>Esc</kbd> cancel</span>${costHTML(sumCost(bp.ents.map(o=>o.t)))}`}
+  else if(sel&&pipRecipe)h=`<span class="m">${BUILD[sel].name}</span><span class="d">Copied with recipe ${img(pipRecipe,16)} ${N(pipRecipe)}</span>`;
+  modeEl.innerHTML=h;modeEl.hidden=!h;cv.classList.toggle('tool',!!tool);
+}
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const OBJ=[
+  {t:'Place a Mining Drill (key 3) on iron ore',ok:()=>ents.some(e=>BUILD[e.type]&&BUILD[e.type].cat==='miner'&&ore[idx(e.x,e.y)]===1)},
+  {t:'Build a Coal Generator (key 7), click it and add coal',ok:()=>power.supply>0},
+  {t:'Belt iron ore from the drill into a Smelter (key 4)',ok:()=>(made.iron_plate||0)>0},
+  {t:'Belt 10 plates into the Hub at the center',ok:()=>(delivered.iron_plate||0)+(delivered.copper_plate||0)>=10},
+  {t:'Feed a generator with a coal drill and belt',ok:()=>genAuto},
+  {t:'Research Automation (T)',ok:()=>has('automation')},
+  {t:'Set an Assembler to make gears',ok:()=>(made.gear||0)>0},
+  {t:'Copy part of your factory with C, then paste it',ok:()=>blueprints.length>0},
+  {t:'Research Electronics',ok:()=>has('electronics')},
+  {t:'Deliver 20 red science to the Hub',ok:()=>(delivered.sci_red||0)>=20},
+  {t:'Cross two belts with a linked pair of Belt Tunnels',ok:()=>ents.some(e=>e.type==='tunnel'&&e.pair)},
+  {t:'Build a Wind Turbine',ok:()=>ents.some(e=>e.type==='wind')},
+  {t:'Research Steel Processing',ok:()=>has('steel')},
+  {t:'Deliver 20 green science',ok:()=>(delivered.sci_green||0)>=20},
+  {t:'Upgrade a machine (U, or Upgrade in its panel)',ok:()=>ents.some(e=>['miner2','furnace2','assembler2','assembler3','belt2'].includes(e.type))},
+  {t:'Research Research III',ok:()=>has('sci3')},
+  {t:'Deliver 20 blue science',ok:()=>(delivered.sci_blue||0)>=20},
+  {t:'Pump oil and refine plastic',ok:()=>(made.plastic||0)>0},
+  {t:'Put a module in a machine',ok:()=>ents.some(e=>e.mods&&e.mods.length)},
+  {t:'Research Research IV',ok:()=>has('sci4')},
+  {t:'Deliver 20 purple science',ok:()=>(delivered.sci_purple||0)>=20},
+  {t:'Store power in an Accumulator',ok:()=>power.stored>100},
+  {t:'Research Research V',ok:()=>has('sci5')},
+  {t:'Deliver 20 yellow science',ok:()=>(delivered.sci_yellow||0)>=20},
+  {t:'Run a Nuclear Reactor',ok:()=>(power.src.nuclear||0)>0},
+  {t:'Research Research VI',ok:()=>has('sci6')},
+  {t:'Research Rocketry',ok:()=>has('rocketry')},
+  {t:'Deliver 100 rocket parts and launch',ok:()=>has('launch')},
+];
+let objDone=0;
+function renderObjectives(){
+  if(!inspEl.hidden){objEl.hidden=true;return}objEl.hidden=false;
+  let done=0;const open=[];OBJ.forEach(o=>{if(o.ok())done++;else open.push(o.t)});
+  if(done>objDone&&objDone>0)blip(880,0.12,'triangle',0.04);objDone=done;
+  const al=[];
+  if(power.demand>0&&power.sat<0.98)al.push(['bad',`Power short: machines at ${Math.round(power.sat*100)}% speed`]);
+  const dry=ents.filter(e=>BUILD[e.type]&&BUILD[e.type].fuels&&!e.fq.length&&e.energy<=0).length;if(dry)al.push(['warn',`${dry} generator${dry>1?'s':''} out of fuel`]);
+  if(power.storeCap&&power.stored/power.storeCap<0.1&&sun<0.3)al.push(['warn','Accumulators almost empty']);
+  const unl=ents.filter(e=>e.type==='tunnel'&&!e.pair).length;if(unl)al.push(['warn',`${unl} tunnel${unl>1?'s':''} not linked`]);
+  if(!active&&TECH.some(t=>!t.rep&&techState(t)==='ready'))al.push(['warn','No research running. Press T']);
+  if(simSpeed===0)al.push(['blue','Paused. Press . to resume']);else if(simSpeed>1)al.push(['blue',`Running at ${simSpeed}× speed`]);
+  if(al.length&&al[0][0]==='bad'&&performance.now()-lastPowerWarn>30000){lastPowerWarn=performance.now();blip(180,0.18,'sawtooth',0.03)}
+  objEl.innerHTML=`<div class="h">Goals <small>${done}/${OBJ.length}</small></div><ol>${open.slice(0,3).map((t,i)=>`<li class="${i?'':'first'}">${t}</li>`).join('')||'<li class="first">Every goal complete. Push the repeatable research.</li>'}</ol>${al.length?`<div class="alerts">${al.map(([c,m])=>`<div class="al ${c}">${m}</div>`).join('')}</div>`:''}`;
+}
+let lastPowerWarn=0;
+const ST_TXT={ok:'Working',idle:'Waiting for input',block:'Output blocked',nopower:'No power',norecipe:'Needs setup'};
+function updateUI(){
+  const d=power.demand,s=power.supply,sat=power.sat;
+  $('pwTxt').textContent=`${fmtW(d)} / ${fmtW(s)}${sat<1?` · ${Math.round(sat*100)}%`:''}`;
+  const pb=$('pwBar');pb.style.width=(s>0?Math.min(100,d/s*100):d>0?100:0)+'%';pb.style.background=sat<1?'var(--bad)':s>0&&d/s>0.85?'var(--warn)':'var(--good)';
+  measureTop();
+  $('accWrap').hidden=!power.storeCap;if(power.storeCap)$('accBar').style.width=(power.stored/power.storeCap*100)+'%';
+  const ph=(playTime%DAY)/DAY,hr=(ph*24+6)%24;$('skyName').textContent=`Day ${Math.floor(playTime/DAY)+1} · ${hr<5||hr>=20?'Night':hr<8?'Dawn':hr<17?'Day':'Dusk'}`;
+  $('skyTxt').textContent=`${String(Math.floor(hr)).padStart(2,'0')}:${String(Math.floor(hr%1*60/10)*10).padStart(2,'0')} · wind ${Math.round(wind*100)}%`;$('skyBar').style.width=sun*100+'%';
+  if(active){$('rsName').textContent=TECH_BY[active].name+(TECH_BY[active].rep?` ${lv(active)+1}`:'');$('rsTxt').textContent=Math.floor(researchFrac()*100)+'%'+(rq.length?` · +${rq.length} queued`:'');$('rsBar').style.width=researchFrac()*100+'%'}
+  else{$('rsName').textContent='Research';$('rsTxt').textContent='None active · press T';$('rsBar').style.width='0%'}
+  refreshHotbar();if(tipFor)showTip(tipFor);
+  if(!invEl.hidden)renderInv();
+  if(!inspEl.hidden&&inspected)renderInspector();
+  if(!modalEl.hidden&&modalEl.dataset.kind==='tech')renderTech();
+  if(mouse.in){const[tx,ty]=mouseTile();if(inb(tx,ty)){const o=ore[idx(tx,ty)],e=at(tx,ty);let s=`${tx}, ${ty}`;if(o)s+=` · ${ORE_NAME[o]}`;if(e)s+=` · ${e.type==='hub'?'Hub':BUILD[e.type].name}${e.st&&!isBelt(e.type)&&e.type!=='hub'?' · '+ST_TXT[e.st]:''}`;else if(o&&o!==6&&!sel&&!tool&&bpSel===null)s+=' · hold click to mine';hoverEl.textContent=s;hoverEl.hidden=false}else hoverEl.hidden=true}
+}
+
+function measureTop(){const t=$('top');if(t)document.documentElement.style.setProperty('--topH',Math.round(t.getBoundingClientRect().bottom+8)+'px')}
+addEventListener('resize',()=>measureTop());
+function toggleDrawer(el){const o=el.hidden;invEl.hidden=true;statsEl.hidden=true;libEl.hidden=true;el.hidden=!o;if(!el.hidden){el===invEl?renderInv():el===statsEl?renderStats():renderLib()}refreshHotbar(true)}
+function renderInv(){
+  const ids=Object.keys(ITEMS).filter(k=>(inv[k]||0)>0);
+  invEl.innerHTML=`<div class="h">Inventory <small>${ids.length} kinds</small></div><p style="color:var(--dim);font-size:12.5px;margin:6px 0 10px">Everything belted into the Hub lands here. Buildings and research draw from it.</p>
+  <div class="inv">${ids.map(k=>`<div class="it" title="${N(k)}">${img(k,28)}<b>${fmt(inv[k])}</b><span>${N(k)}</span></div>`).join('')||'<span style="color:var(--dim)">Empty</span>'}</div>
+  <div class="sec"><div class="lbl">Hand craft</div>${HANDCRAFT.filter(r=>r!=='circuit'||has('electronics')).map(r=>{const R=RECIPES[r];const ok=canAfford(R.in);
+   return`<div class="craft"><span class="recipe">${Object.keys(R.in).map(k=>R.in[k]+'×'+img(k,16)).join(' + ')} <span class="arrow">→</span> ${R.out}×${img(r,16)}</span><span><button class="btn sm" data-act="hc" data-r="${r}" data-n="1" ${ok?'':'disabled'}>×1</button> <button class="btn sm" data-act="hc" data-r="${r}" data-n="10" ${ok?'':'disabled'}>×10</button></span></div>`}).join('')}
+  <p style="color:var(--dim);font-size:12px;margin:6px 0 0">Hand crafting is instant but doesn't scale. Assemblers do it forever.</p></div>`;
+}
+function handCraft(r,n){const R=RECIPES[r];let c=0;for(let i=0;i<n;i++){if(!canAfford(R.in))break;pay(R.in);addInv(r,R.out);c++}if(c){blip(640,0.05,'triangle');renderInv()}}
+
+function rateOf(id,key){if(!buckets.length)return 0;let s=0;for(const b of buckets)s+=b[key][id]||0;return s*60/buckets.length}
+function spark60(id){const vals=buckets.map(b=>b.m[id]||0);const mx=Math.max(1,...vals);const w=64,h=18;if(vals.length<2)return'';const pts=vals.map((v,i)=>`${(i/(vals.length-1)*w).toFixed(1)},${(h-1-v/mx*(h-2)).toFixed(1)}`).join(' ');return`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline points="0,${h} ${pts} ${w},${h}" fill="#f2a93b22" stroke="none"/><polyline points="${pts}" fill="none" stroke="#f2a93b" stroke-width="1.4"/></svg>`}
+function renderStats(){
+  const ids=Object.keys(ITEMS).map(k=>({k,m:rateOf(k,'m'),d:rateOf(k,'d')})).filter(r=>r.m>0||r.d>0).sort((a,b)=>b.m-a.m);
+  const counts={};ents.forEach(e=>{if(e.type!=='hub')counts[e.type]=(counts[e.type]||0)+1});const s=power.src;
+  const srcRow=(n,v,col)=>v>0.01?`<div class="kv"><span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${col};margin-right:6px"></span>${n}</span><b>${fmtW(v)}</b></div>`:'';
+  statsEl.innerHTML=`<div class="h">Production <small>last ${buckets.length}s</small></div>
+  ${ids.length?`<table class="st" style="margin-top:10px"><tr><th>Item</th><th>Made/min</th><th>To hub</th><th></th></tr>${ids.map(r=>`<tr><td>${img(r.k,20)}${N(r.k)}</td><td class="n">${r.m.toFixed(r.m<10?1:0)}</td><td class="n">${r.d.toFixed(r.d<10?1:0)}</td><td>${spark60(r.k)}</td></tr>`).join('')}</table>`:'<p style="color:var(--dim)">Nothing is being produced yet. Place a drill on ore.</p>'}
+  <div class="sec"><div class="lbl">Power right now</div>${srcRow('Coal & fuel',s.coal,'#e05a3a')}${srcRow('Wind',s.wind,'#e8ecef')}${srcRow('Solar',s.solar,'#f2d23b')}${srcRow('Nuclear',s.nuclear,'#5fd35a')}${srcRow('Accumulators',s.battery,'#5aa9f0')}${srcRow('Charging accumulators',s.charging,'#5aa9f0')}
+   <div class="kv"><span>Demand</span><b>${fmtW(power.demand)}</b></div>${power.storeCap?`<div class="kv"><span>Stored</span><b>${fmt(power.stored*30/1000)} / ${fmt(power.storeCap*30/1000)} MJ</b></div>`:''}</div>
+  <div class="sec"><div class="lbl">Factory</div>${Object.keys(counts).map(t=>`<div class="kv"><span>${BUILD[t].name}</span><b>${counts[t]}</b></div>`).join('')}<div class="kv"><span>Time played</span><b>${fmtTime(playTime)}</b></div></div>`;
+}
+
+let bpRename=-1,bpDelArm=-1,bpExportIdx=-1,bpImportOpen=false;
+function bpPreview(bp){
+  const{cells,w,h}=bpCells(bp,0);const c=document.createElement('canvas');const s=Math.max(2,Math.min(8,Math.floor(Math.min(144/w,108/h))));c.width=w*s+4;c.height=h*s+4;const g=c.getContext('2d');
+  g.fillStyle='#0b0d0c';g.fillRect(0,0,c.width,c.height);for(const o of cells){g.fillStyle=MINI_ENT[o.t]||'#888';g.fillRect(2+o.dx*s,2+o.dy*s,Math.max(1,s-(s>3?1:0)),Math.max(1,s-(s>3?1:0)))}return c.toDataURL()}
+function renderLib(){
+  const list=blueprints.map((bp,i)=>{const{w,h}=bpCells(bp,0);
+    return`<div class="bp ${bpSel===i?'on':''}"><div class="top"><img src="${bpPreview(bp)}" alt=""><div style="min-width:0;flex:1">${bpRename===i?`<input id="bpName" value="${esc(bp.name)}" maxlength="40">`:`<div class="nm">${esc(bp.name)}</div>`}<div class="meta">${w}×${h} · ${bp.ents.length} buildings</div></div></div>
+    ${costHTML(sumCost(bp.ents.map(o=>o.t)))}
+    ${bpExportIdx===i?`<textarea class="ta" id="bpOut" readonly>${bpExport(bp)}</textarea><div class="row" style="margin-top:0"><button class="btn sm" data-act="bpcopy">Copy text</button><button class="btn sm" data-act="bpexpclose">Done</button></div>`:''}
+    <div class="row" style="margin-top:0">${bpRename===i?`<button class="btn sm pri" data-act="bpren2" data-i="${i}">Save name</button>`:`<button class="btn sm pri" data-act="bpuse" data-i="${i}">Paste</button><button class="btn sm" data-act="bpren" data-i="${i}">Rename</button><button class="btn sm" data-act="bpexp" data-i="${i}">Export</button>${bpDelArm===i?`<button class="btn sm danger" data-act="bpdel2" data-i="${i}">Delete it</button>`:`<button class="btn sm" data-act="bpdel" data-i="${i}">Delete</button>`}`}</div></div>`}).join('');
+  libEl.innerHTML=`<div class="h">Blueprints <small>${blueprints.length} saved</small></div>
+  <p style="color:var(--dim);font-size:12.5px;margin:6px 0 10px">Press <kbd>C</kbd> and drag a box over any part of your factory to save it. Blueprints are kept in this browser across worlds.</p>
+  <div class="row" style="margin-top:0"><button class="btn sm pri" data-act="tcopy">Copy area <kbd>C</kbd></button><button class="btn sm" data-act="bpimp">Import</button></div>
+  ${bpImportOpen?`<div style="margin-top:8px"><textarea class="ta" id="bpIn" placeholder="Paste a blueprint string starting with FL1:"></textarea><div class="row" style="margin-top:6px"><button class="btn sm pri" data-act="bpimp2">Add blueprint</button><button class="btn sm" data-act="bpimpclose">Cancel</button></div></div>`:''}
+  <div class="bplist">${list||'<p style="color:var(--dim);font-size:13px;margin:0">No blueprints yet.</p>'}</div>`;
+  const ni=$('bpName');if(ni){ni.focus();ni.select();ni.addEventListener('keydown',ev=>{if(ev.key==='Enter'){finishRename();ev.preventDefault()}if(ev.key==='Escape'){bpRename=-1;renderLib()}})}
+}
+function finishRename(){const ni=$('bpName');if(ni&&blueprints[bpRename]){blueprints[bpRename].name=ni.value.trim().slice(0,40)||blueprints[bpRename].name;saveBP()}bpRename=-1;renderLib();updateModebar()}
+
+function openInspector(e){inspected=e;clearModes();inspEl.hidden=false;objEl.hidden=true;renderInspector();blip(500,0.03,'triangle')}
+function closeInspector(){inspected=null;inspEl.hidden=true;if(typeof renderObjectives==='function'&&ents)renderObjectives()}
+function renderInspector(){
+  const e=inspected;if(!e||(e.type!=='hub'&&!ents.includes(e))){closeInspector();return}
+  const sc=inspEl.scrollTop;let h='';
+  if(e.type==='hub'){
+    const top=Object.keys(delivered).sort((a,b)=>delivered[b]-delivered[a]).slice(0,10);
+    h=`<div class="h">Building <small>${HX}, ${HY}</small></div><div class="ititle">Hub</div><p style="color:var(--dim);font-size:13px;margin:4px 0 0">Belt anything into any of its nine tiles. It all goes to your inventory.</p>
+    <div class="sec"><div class="lbl">Delivered all time</div>${top.map(k=>`<div class="kv"><span>${img(k,16)} ${N(k)}</span><b>${fmt(delivered[k])}</b></div>`).join('')||'<span style="color:var(--dim)">Nothing yet</span>'}</div>
+    <div class="row"><button class="btn" data-act="inv">Open inventory</button><button class="btn" data-act="close">Close</button></div>`;
+  }else{
+    const b=BUILD[e.type];
+    h=`<div class="h">Building <small>${e.x}, ${e.y}</small></div><div class="ititle">${b.name}</div>`;
+    if(!isBelt(e.type)){const txt=b.fuels&&e.st==='nopower'?'Out of fuel':e.type==='accumulator'?(e.charge>1?'Charged':'Empty'):e.type==='solar'&&e.st==='idle'?'Night':ST_TXT[e.st];h+=`<span class="stat s-${e.st}">${txt}</span>`}
+    if(b.cat==='miner'){const o=ore[idx(e.x,e.y)];h+=`<div class="sec"><div class="kv"><span>Extracting</span><b>${o&&b.ores.includes(o)?N(ORE_ITEM[o]):'Nothing'}</b></div><div class="kv"><span>Rate</span><b>${(60*b.rate*minerMult()*(1+e.ms.spd)*power.sat).toFixed(1)}/min</b></div>${e.ms.prod||lv('rep_mine')?`<div class="kv"><span>Bonus output</span><b>+${Math.round((e.ms.prod+lv('rep_mine')*.1)*100)}%</b></div>`:''}<div class="kv"><span>Holding</span><b>${e.out.length}</b></div></div>`}
+    if(b.cat==='smelter'){const r=e.rin&&SMELT[e.rin];h+=`<div class="sec"><div class="lbl">Smelting</div>${r?`<div class="recipe">${r.n}×${img(e.rin,18)} <span class="arrow">→</span> 1×${img(r.out,18)} <span class="arrow">${(r.t/b.spd/smeltMult()/(1+e.ms.spd)).toFixed(1)}s</span></div><div class="pbar"><i style="width:${(e.prog*100).toFixed(0)}%"></i></div><div class="kv" style="margin-top:6px"><span>Queued input</span><b>${e.inb[e.rin]||0}</b></div><div class="kv"><span>Output waiting</span><b>${e.out.length}</b></div>`:'<span style="color:var(--dim);font-size:13px">Idle. Belt ore in and it picks the recipe.</span>'}</div>
+      <div class="sec"><div class="lbl">Known recipes</div>${Object.keys(SMELT).filter(k=>!SMELT[k].tech||has(SMELT[k].tech)).map(k=>`<div class="recipe" style="margin-bottom:4px">${SMELT[k].n}×${img(k,16)} <span class="arrow">→</span> ${img(SMELT[k].out,16)} ${N(SMELT[k].out)}</div>`).join('')}</div>`}
+    if(b.cat==='crafter'){const r=e.recipe&&RECIPES[e.recipe];
+      h+=`<div class="sec"><div class="lbl">Recipe</div><div class="pick">${Object.keys(RECIPES).filter(k=>unlockedR(k)&&recipeCat(k)===b.rc).map(k=>`<button data-act="recipe" data-r="${k}" class="${e.recipe===k?'on':''}" title="${N(k)}">${img(k,24)}</button>`).join('')||'<span style="color:var(--dim);font-size:13px">No recipes researched yet.</span>'}</div></div>`;
+      if(r){const tt=r.t/b.spd/asmMult()/(1+e.ms.spd);h+=`<div class="sec"><div class="recipe">${Object.keys(r.in).map(k=>`${r.in[k]}×${img(k,18)}`).join(' + ')} <span class="arrow">→</span> ${r.out}×${img(e.recipe,18)} <span class="arrow">${tt.toFixed(1)}s</span></div><div class="pbar"><i style="width:${(e.prog*100).toFixed(0)}%"></i></div>
+        <div style="margin-top:8px">${Object.keys(r.in).map(k=>`<div class="kv"><span>${img(k,16)} ${N(k)}</span><b>${e.inb[k]||0} / ${r.in[k]}</b></div>`).join('')}<div class="kv"><span>Output waiting</span><b>${e.out.length}</b></div></div>
+        <div class="kv"><span>Max rate</span><b>${(60/tt*r.out*(1+e.ms.prod)).toFixed(1)}/min</b></div><div class="kv"><span>Needs per min</span><b>${Object.keys(r.in).map(k=>`${(60/tt*r.in[k]).toFixed(1)} ${img(k,14)}`).join(' ')}</b></div></div>`}
+      else h+=`<p style="color:var(--dim);font-size:13px">Pick a recipe. Belts carrying anything else will back up, so keep input belts clean or use a Sorter.</p>`}
+    if(b.slots){const have=Object.keys(MODS).filter(m=>(inv[m]||0)>0);
+      h+=`<div class="sec"><div class="lbl">Modules</div><div class="slots">${Array.from({length:b.slots},(_,i)=>{const m=e.mods[i];return m?`<button class="mslot full" data-act="modout" data-i="${i}" title="Remove ${N(m)}">${img(m,28)}</button>`:`<div class="mslot"></div>`}).join('')}</div>
+      ${e.mods.length<b.slots?(have.length?`<div class="row">${have.map(m=>`<button class="btn sm" data-act="modin" data-r="${m}">${img(m,16)} ${inv[m]}</button>`).join('')}</div>`:`<p style="color:var(--dim);font-size:12px;margin:8px 0 0">${has('modules')?'Craft modules in an assembler to fill these slots.':'Research Modules to fill these slots.'}</p>`):''}
+      ${e.mods.length?`<div class="kv" style="margin-top:6px"><span>Speed</span><b>${e.ms.spd>=0?'+':''}${Math.round(e.ms.spd*100)}%</b></div><div class="kv"><span>Power</span><b>+${Math.round(e.ms.pow*100)}%</b></div>${e.ms.prod?`<div class="kv"><span>Productivity</span><b>+${Math.round(e.ms.prod*100)}%</b></div>`:''}`:''}</div>`}
+    if(e.type==='filter'){const known=Object.keys(ITEMS).filter(k=>(inv[k]||0)>0||(made[k]||0)>0||(delivered[k]||0)>0);
+      h+=`<div class="sec"><div class="lbl">Send left</div><div class="pick">${known.map(k=>`<button data-act="filter" data-r="${k}" class="${e.filter===k?'on':''}" title="${N(k)}">${img(k,24)}</button>`).join('')}</div><p style="color:var(--dim);font-size:12px;margin:8px 0 0">The green marker shows the left exit. Everything else continues forward.</p></div>`}
+    if(b.fuels){const fc={};e.fq.forEach(f=>fc[f]=(fc[f]||0)+1);const anyFuel=b.fuels.some(f=>(inv[f]||0)>0);
+      h+=`<div class="sec"><div class="kv"><span>Fuel</span><b>${e.fq.length} / ${b.fmax}</b></div>${Object.keys(fc).map(f=>`<div class="kv"><span>${img(f,16)} ${N(f)}</span><b>${fc[f]}</b></div>`).join('')}<div class="kv"><span>Load</span><b>${Math.round((e.load||0)*100)}%</b></div><div class="kv"><span>Output</span><b>${fmtW((e.load||0)*b.cap)}</b></div>
+      <div class="row"><button class="btn pri" data-act="fuel" ${anyFuel&&e.fq.length<b.fmax?'':'disabled'}>Add fuel <kbd>F</kbd></button></div><p style="color:var(--dim);font-size:12px;margin:8px 0 0">Accepts ${b.fuels.map(N).join(' or ')}. Belt it in to automate.</p></div>`}
+    if(e.type==='wind')h+=`<div class="sec"><div class="kv"><span>Wind</span><b>${Math.round(wind*100)}%</b></div><div class="kv"><span>Output</span><b>${fmtW(b.cap*wind)}</b></div></div>`;
+    if(e.type==='solar')h+=`<div class="sec"><div class="kv"><span>Sunlight</span><b>${Math.round(sun*100)}%</b></div><div class="kv"><span>Output</span><b>${fmtW(b.cap*sun)}</b></div></div>`;
+    if(e.type==='accumulator')h+=`<div class="sec"><div class="kv"><span>Charge</span><b>${Math.round(e.charge/b.store*100)}%</b></div><div class="pbar"><i style="width:${e.charge/b.store*100}%;background:var(--blue)"></i></div></div>`;
+    if(e.type==='chest'){const c={};e.buf.forEach(k=>c[k]=(c[k]||0)+1);h+=`<div class="sec"><div class="kv"><span>Stored</span><b>${e.buf.length} / 400</b></div>${Object.keys(c).map(k=>`<div class="kv"><span>${img(k,16)} ${N(k)}</span><b>${c[k]}</b></div>`).join('')}<div class="row"><button class="btn" data-act="take" ${e.buf.length?'':'disabled'}>Move all to inventory</button></div></div>`}
+    if(e.type==='tunnel'){h+=e.pair?`<div class="sec"><div class="kv"><span>Role</span><b>${e.role==='in'?'Entrance':'Exit'}</b></div><div class="kv"><span>Linked to</span><b>${e.pair.x}, ${e.pair.y}</b></div><div class="kv"><span>Tiles under</span><b>${Math.abs(e.pair.x-e.x)+Math.abs(e.pair.y-e.y)-1}</b></div>${e.role==='in'?`<div class="kv"><span>Items inside</span><b>${e.tq.length}</b></div>`:''}</div>`
+      :`<p style="color:var(--warn);font-size:13px">Not linked. Place a second tunnel facing the same way within ${TUN_RANGE} tiles ahead.</p>`}
+    if(e.type==='depot'){const known=Object.keys(ITEMS).filter(k=>(inv[k]||0)>0||(delivered[k]||0)>0);
+      h+=`<div class="sec"><div class="lbl">Send out</div><div class="pick">${known.map(k=>`<button data-act="filter" data-r="${k}" class="${e.filter===k?'on':''}" title="${N(k)} (${fmt(inv[k]||0)})">${img(k,24)}</button>`).join('')}</div>${e.filter?`<div class="kv" style="margin-top:8px"><span>${img(e.filter,16)} In inventory</span><b>${fmt(inv[e.filter]||0)}</b></div>`:''}<p style="color:var(--dim);font-size:12px;margin:8px 0 0">Use it to supply far-off builds, or feed a generator straight from stock. It won't output into the Hub.</p></div>`}
+    if(e.type==='splitter')h+=`<p style="color:var(--dim);font-size:13px">Items arriving from any side leave through the left, front and right exits in turn. A blocked exit is skipped.</p>`;
+    if(isBelt(e.type))h+=`<div class="sec"><div class="kv"><span>Throughput</span><b>${(b.speed*4*60).toFixed(0)}/min</b></div><div class="kv"><span>Carrying</span><b>${e.items.length}</b></div></div>`;
+    if(b.next){const nb=BUILD[b.next];h+=`<div class="sec"><div class="lbl">Upgrade to ${nb.name}</div>${unlockedB(b.next)?`${costHTML(nb.cost)}<p style="color:var(--dim);font-size:12px;margin:6px 0 0">The old building's cost is refunded.</p><div class="row"><button class="btn pri" data-act="upg" ${canAfford(nb.cost)?'':'disabled'}>Upgrade</button></div>`:`<span style="color:var(--dim);font-size:13px">Research ${TECH_BY[nb.tech].name} first.</span>`}</div>`}
+    h+=`<div class="row"><button class="btn" data-act="rot">Rotate <kbd>R</kbd></button><button class="btn" data-act="copy">Copy <kbd>Q</kbd></button><button class="btn" data-act="del">Remove</button><button class="btn" data-act="close">Close</button></div>`;
+  }
+  inspEl.innerHTML=h;inspEl.scrollTop=sc;
+}
+
+function openModal(kind,html){modalEl.dataset.kind=kind;sheetEl.innerHTML=html;modalEl.hidden=false;hideTip()}
+function closeModal(){modalEl.hidden=true;modalEl.dataset.kind=''}
+function closeAll(){closeModal();closeInspector();invEl.hidden=true;statsEl.hidden=true;libEl.hidden=true}
+modalEl.addEventListener('pointerdown',ev=>{if(ev.target===modalEl&&!(launch&&!launch.shown))closeModal()});
+function openTech(){if(!modalEl.hidden&&modalEl.dataset.kind==='tech'){closeModal();return}openModal('tech','');renderTech()}
+function renderTech(){
+  const tree=sheetEl.querySelector('.tree');const sl=tree?tree.scrollLeft:0,st=sheetEl.scrollTop;
+  const tiers={};TECH.forEach(t=>(tiers[t.tier]=tiers[t.tier]||[]).push(t));
+  const done=TECH.filter(t=>!t.rep&&has(t.id)).length,total=TECH.filter(t=>!t.rep).length;
+  sheetEl.innerHTML=`<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><h2>Research</h2><p class="sub">Pick a technology. It pulls the cost from your inventory as items reach the Hub, up to 30 a second. ${done}/${total} complete. Queue anything, even locked tech, and its prerequisites line up automatically. Scroll sideways for later tiers.</p>${rq.length?`<p class="sub" style="margin-top:-8px;color:var(--blue)">Queue: ${rq.map(q=>TECH_BY[q].name).join(' → ')} <button class="btn sm" data-act="clearq" style="margin-left:6px">Clear queue</button></p>`:''}</div><button class="btn" data-act="closem">Close <kbd>Esc</kbd></button></div>
+  <div class="tree">${Object.keys(tiers).map(k=>`<div class="tier"><div class="lbl">TIER ${k}</div>${tiers[k].map(t=>{const s=techState(t),c=costOf(t);
+    const label=s==='done'?'Done':s==='active'?Math.floor(researchFrac()*100)+'%':s==='ready'?(t.rep?`Level ${lv(t.id)+1}`:'Ready'):'Locked';
+    return`<div class="tech ${s}"><div class="nm">${t.name}<small>${label}</small></div><p>${t.desc}</p>
+    ${s==='done'?'':`<div class="costs">${Object.keys(c).map(i=>{const p=s==='active'?(paid[i]||0):0;const hv=(inv[i]||0)+p;return`<span class="cost ${hv>=c[i]?'ok':'no'}" title="${N(i)}">${img(i,16)}${s==='active'?fmt(p)+'/':''}${fmt(c[i])}</span>`}).join('')}</div>`}
+    ${s==='locked'?`<div class="req">Needs ${t.req.filter(r=>!has(r)).map(r=>TECH_BY[r].name).join(', ')}</div>`:''}
+    ${rq.includes(t.id)?`<div class="row" style="margin-top:0;align-items:center"><span class="qtag">QUEUED #${rq.indexOf(t.id)+1}</span><button class="btn sm" data-act="unqueue" data-r="${t.id}">Remove</button></div>`
+      :s==='ready'?`<div class="row" style="margin-top:0"><button class="btn pri sm" data-act="research" data-r="${t.id}">${active?'Switch to this':'Start research'}</button>${active?`<button class="btn sm" data-act="queue" data-r="${t.id}">Queue</button>`:''}</div>`
+      :s==='locked'?`<div class="row" style="margin-top:0"><button class="btn sm" data-act="queue" data-r="${t.id}">Queue with prerequisites</button></div>`:''}
+    ${s==='active'?`<button class="btn sm" data-act="cancelr">Cancel and refund</button>`:''}</div>`}).join('')}</div>`).join('')}</div>`;
+  const nt=sheetEl.querySelector('.tree');if(nt)nt.scrollLeft=sl;sheetEl.scrollTop=st;
+}
+let resetArm=false,saveIO=null;
+function openHelp(){if(!modalEl.hidden&&modalEl.dataset.kind==='help'){closeModal();return}resetArm=false;saveIO=null;openModal('help',helpHTML())}
+function helpHTML(){return`<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><h2>Foundry Line</h2><p class="sub">Mine ore, smelt it, assemble parts, and belt everything into the Hub. Six tiers of science take you from iron plates through oil, modules and nuclear power to a rocket launch. After that, repeatable research keeps going.</p></div><button class="btn pri" data-act="closem">Start building</button></div>
+  <div class="cols">
+   <div><h3>Build</h3><dl><dt>1 – 7</dt><dd>Pick a building group. Press again to cycle tiers</dd><dt>Left click</dt><dd>Place. Drag to lay belts and rows</dd><dt>R</dt><dd>Rotate (Shift+R reverses). Works on hovered buildings</dd><dt>Right click</dt><dd>Remove with full refund. Drag to clear a line</dd><dt>Q</dt><dd>Copy hovered building with its recipe and modules</dd><dt>F</dt><dd>Add fuel to hovered generator or reactor</dd><dt>Esc</dt><dd>Put the building down</dd></dl></div>
+   <div><h3>Blueprints</h3><dl><dt>C</dt><dd>Copy area: drag a box to save a blueprint</dd><dt>Click</dt><dd>Paste it. R rotates the whole thing</dd><dt>B</dt><dd>Library: paste, rename, export, import</dd><dt>U</dt><dd>Upgrade area: every building in the box goes up a tier</dd><dt>X</dt><dd>Clear area. Shift + right drag does it too</dd><dt>Ctrl+C / V</dt><dd>Copy area / paste last blueprint</dd></dl></div>
+   <div><h3>Move & panels</h3><dl><dt>WASD</dt><dd>Pan the map. Drag empty ground too</dd><dt>Space + drag</dt><dd>Pan while building</dd><dt>Scroll</dt><dd>Zoom</dd><dt>Click building</dt><dd>Recipe, modules, fuel, upgrade</dd><dt>T / I / P</dt><dd>Research, inventory, production</dd><dt>, and .</dt><dd>Slow down or speed up: pause, 1×, 2×, 4×</dd><dt>M</dt><dd>Sound on or off</dd></dl></div>
+   <div><h3>Logistics</h3><p>Belt Tunnels come in pairs: place one, then another facing the same way up to 6 tiles ahead. Items travel under anything in between, so belts can cross.</p><p>A Supply Depot pulls a chosen item out of your inventory onto a belt. Use it to feed distant builds or top up generators from stock.</p><p>In the research tree you can queue locked tech. Its prerequisites queue up for you.</p></div>
+   <div><h3>Power</h3><p>Every machine shares one grid. If demand outruns supply, everything slows together.</p><p>Coal generators burn only what's needed. Wind drifts. Solar follows a ten-minute day and dies at night, so pair it with Accumulators. Nuclear reactors are huge but need fuel rods.</p><p>Status lights: green working, yellow waiting, red blocked, blue no power.</p></div>
+  </div>
+  ${saveIO==='out'?`<div class="sec"><div class="lbl">Save text</div><textarea class="ta" id="saveOut" readonly style="height:90px">FLS2:${btoa(unescape(encodeURIComponent(serialize())))}</textarea><div class="row"><button class="btn pri sm" data-act="savecopy">Copy</button><button class="btn sm" data-act="saveclose">Done</button></div></div>`:''}
+  ${saveIO==='in'?`<div class="sec"><div class="lbl">Load a save</div><textarea class="ta" id="saveIn" placeholder="Paste save text starting with FLS2:" style="height:90px"></textarea><p style="color:var(--warn);font-size:12px;margin:6px 0 0">This replaces the factory you have open now.</p><div class="row"><button class="btn pri sm" data-act="saveload">Load it</button><button class="btn sm" data-act="saveclose">Cancel</button></div></div>`:''}
+  <div class="sec" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="color:var(--dim);font-size:13px">Your factory saves in this browser every 20 seconds. Export a copy to keep it safe or move it to another computer.</span><button class="btn" data-act="saveout">Export save</button><button class="btn" data-act="savein">Import save</button>${resetArm?`<button class="btn danger" data-act="resetYes">Erase factory and start over</button><button class="btn" data-act="resetNo">Keep it</button>`:`<button class="btn" data-act="reset">New world</button>`}</div>`}
+function showVictory(){
+  const tot=Object.values(made).reduce((a,b)=>a+b,0);
+  openModal('win',`<h2 style="color:var(--amber)">Orbit reached</h2><p class="sub">The rocket cleared the atmosphere. Your factory made ${fmt(tot)} items with ${ents.length-1} buildings in ${fmtTime(playTime)}. Repeatable research is still open if you want to keep scaling.</p><div class="row"><button class="btn pri" data-act="closem">Keep building</button></div>`);
+  chord();
+}
+
+document.addEventListener('click',ev=>{
+  const b=ev.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,r=b.dataset.r,i=+b.dataset.i;
+  switch(a){
+    case'inv':toggleDrawer(invEl);break;case'stats':toggleDrawer(statsEl);break;case'lib':toggleDrawer(libEl);break;case'tech':openTech();break;case'help':openHelp();break;
+    case'close':closeInspector();break;case'closem':closeModal();break;
+    case'hc':handCraft(r,+b.dataset.n);break;
+    case'recipe':if(inspected){setRecipe(inspected,r);renderInspector()}break;
+    case'filter':if(inspected){inspected.filter=inspected.filter===r?null:r;blip(600,0.05,'triangle');renderInspector()}break;
+    case'fuel':if(inspected){feed(inspected);renderInspector()}break;
+    case'take':if(inspected){inspected.buf.forEach(addInv);inspected.buf=[];renderInspector()}break;
+    case'rot':if(inspected){inspected.dir=(inspected.dir+1)%4;if(inspected.type==='tunnel')retunnel();blip(520,0.03)}break;
+    case'copy':if(inspected)pipette(inspected);break;
+    case'del':if(inspected)removeAt(inspected.x,inspected.y);break;
+    case'upg':if(inspected){const res=upgradeEnt(inspected);if(res==='ok'){blip(880,0.1,'triangle',0.04);toast(`Upgraded to ${BUILD[inspected.type].name}`)}renderInspector()}break;
+    case'modin':if(inspected&&(inv[r]||0)>0&&inspected.mods.length<BUILD[inspected.type].slots){inv[r]--;inspected.mods.push(r);calcMods(inspected);blip(700,0.06,'triangle');renderInspector()}break;
+    case'modout':if(inspected){const m=inspected.mods.splice(i,1)[0];if(m)addInv(m);calcMods(inspected);blip(400,0.05,'triangle');renderInspector()}break;
+    case'research':startResearch(r);renderTech();break;
+    case'cancelr':if(active){refund(paid);paid={};active=null;renderTech()}break;
+    case'queue':queueTech(r);renderTech();break;
+    case'unqueue':rq=rq.filter(q=>q!==r);renderTech();break;
+    case'clearq':rq=[];renderTech();break;
+    case'speed':setSpeed(+b.dataset.n);break;
+    case'saveout':saveIO='out';sheetEl.innerHTML=helpHTML();{const ta=$('saveOut');if(ta)ta.select()}break;
+    case'savein':saveIO='in';sheetEl.innerHTML=helpHTML();{const ta=$('saveIn');if(ta)ta.focus()}break;
+    case'saveclose':saveIO=null;sheetEl.innerHTML=helpHTML();break;
+    case'savecopy':{const ta=$('saveOut');if(!ta)break;if(navigator.clipboard)navigator.clipboard.writeText(ta.value).then(()=>toast('Save copied'),()=>{ta.select();toast('Press Ctrl+C to copy')});else{ta.select();toast('Press Ctrl+C to copy')}break}
+    case'saveload':{const ta=$('saveIn');let ok=false;try{const v=ta.value.trim();if(v.startsWith('FLS2:'))ok=load(decodeURIComponent(escape(atob(v.slice(5)))))}catch(e){ok=false}
+      if(ok){saveIO=null;closeAll();clearModes();save();refreshHotbar(true);toast('Factory loaded',true)}else toast('That text is not a valid save.');break}
+    case'reset':resetArm=true;sheetEl.innerHTML=helpHTML();break;
+    case'resetNo':resetArm=false;sheetEl.innerHTML=helpHTML();break;
+    case'resetYes':try{localStorage.removeItem(SAVE_KEY)}catch(e){}newGame();closeAll();clearModes();objDone=0;refreshHotbar(true);toast('New world generated',true);break;
+    case'tcopy':setTool('copy');break;
+    case'bpuse':setBP(i);renderLib();break;
+    case'bpren':bpRename=i;bpDelArm=-1;renderLib();break;
+    case'bpren2':finishRename();break;
+    case'bpexp':bpExportIdx=i;renderLib();{const ta=$('bpOut');if(ta)ta.select()}break;
+    case'bpexpclose':bpExportIdx=-1;renderLib();break;
+    case'bpcopy':{const ta=$('bpOut');if(!ta)break;navigator.clipboard&&navigator.clipboard.writeText(ta.value).then(()=>toast('Blueprint text copied'),()=>{ta.select();toast('Press Ctrl+C to copy')});if(!navigator.clipboard){ta.select();toast('Press Ctrl+C to copy')}break}
+    case'bpdel':bpDelArm=i;renderLib();break;
+    case'bpdel2':blueprints.splice(i,1);saveBP();if(bpSel===i)clearModes();else if(bpSel!==null&&bpSel>i)bpSel--;bpDelArm=-1;renderLib();break;
+    case'bpimp':bpImportOpen=true;renderLib();{const ta=$('bpIn');if(ta)ta.focus()}break;
+    case'bpimpclose':bpImportOpen=false;renderLib();break;
+    case'bpimp2':{const ta=$('bpIn');if(ta&&bpImport(ta.value)){bpImportOpen=false;toast('Blueprint imported');renderLib()}else toast('That text is not a valid blueprint.');break}
+  }
+});
+
+// ================== MINIMAP ==================
+const mctx=miniEl.getContext('2d');
+const MINI_ENT={belt:'#c99a3a',belt2:'#d9564a',belt3:'#4aa0e8',belt4:'#c070f0',miner:'#9aa4b0',miner2:'#bcd4ec',pump:'#7a6a50',furnace:'#c4683f',furnace2:'#7ab4e8',assembler:'#6a84a2',assembler2:'#8a76b2',assembler3:'#5cc0a4',refinery:'#7aa89e',splitter:'#d9a43a',filter:'#5bbf7a',chest:'#8a6a40',tunnel:'#7a828a',depot:'#e0b050',generator:'#e05a3a',wind:'#e8ecef',solar:'#3f6ac0',accumulator:'#5aa9f0',reactor:'#5fd35a'};
+function drawMini(){
+  const id=mctx.createImageData(W,H),d=id.data;
+  for(let i=0;i<W*H;i++){const o=ore[i];let c=o?hexRgb(ORE_COL[o].mini):[36,40,33];const e=grid[i];if(e)c=e.type==='hub'?[242,169,59]:hexRgb(MINI_ENT[e.type]);d[i*4]=c[0];d[i*4+1]=c[1];d[i*4+2]=c[2];d[i*4+3]=255}
+  mctx.putImageData(id,0,0);
+  if(sun<0.9){mctx.fillStyle=`rgba(8,12,34,${(1-sun)*0.45})`;mctx.fillRect(0,0,W,H)}
+  mctx.strokeStyle='#ece6d6';mctx.lineWidth=1.5;const vw=cw/zoom/T,vh=ch/zoom/T;mctx.strokeRect(cam.x/T-vw/2,cam.y/T-vh/2,vw,vh);
+}
+miniEl.addEventListener('pointerdown',ev=>{const r=miniEl.getBoundingClientRect();const mv=e=>{cam.x=(e.clientX-r.left)/r.width*W*T;cam.y=(e.clientY-r.top)/r.height*H*T;drawMini()};mv(ev);
+  const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up)};addEventListener('pointermove',mv);addEventListener('pointerup',up)});
+
+// ================== SAVE / LOAD ==================
+function serialize(){
+  return JSON.stringify({v:2,seed,inv,techs:[...techs],techLv,active,paid,delivered,made,playTime,genAuto,won,cam:{x:cam.x,y:cam.y,z:zoom},
+    ents:ents.filter(e=>e.type!=='hub').map(e=>{const o={t:e.type,x:e.x,y:e.y,d:e.dir};if(e.recipe)o.r=e.recipe;if(e.filter)o.f=e.filter;if(e.items&&e.items.length)o.i=e.items.map(it=>[it.id,+it.p.toFixed(3)]);
+      if(e.out&&e.out.length)o.o=e.out;if(e.inb&&Object.keys(e.inb).length)o.b=e.inb;if(e.rin)o.ri=e.rin;if(e.fq&&e.fq.length)o.fq=e.fq;if(e.energy)o.en=e.energy;if(e.charge)o.ch=e.charge;if(e.prog)o.p=e.prog;if(e.crafting)o.c=1;if(e.buf&&e.buf.length)o.bu=e.buf;if(e.mods&&e.mods.length)o.m=e.mods;if(e.pb)o.pb=e.pb;if(e.tq&&e.tq.length)o.tq=e.tq.map(it=>[it.id,+it.t.toFixed(2)]);return o}),rq});
+}
+function load(str){
+  const s=JSON.parse(str);if(!s||s.v!==2)return false;
+  seed=s.seed;ents=[];grid=new Array(W*H).fill(null);inv=s.inv||{};techs=new Set(s.techs||[]);techLv=s.techLv||{};active=s.active||null;paid=s.paid||{};delivered=s.delivered||{};made=s.made||{};playTime=s.playTime||0;genAuto=!!s.genAuto;won=!!s.won;launch=null;
+  buckets=[];curMade={};curDel={};
+  genWorld();makeHub();
+  for(const o of s.ents||[]){if(!BUILD[o.t]||!inb(o.x,o.y)||grid[idx(o.x,o.y)])continue;const e=mkEnt(o.t,o.x,o.y,o.d);
+    if(o.r)e.recipe=o.r;if(o.f)e.filter=o.f;if(o.i)e.items=o.i.map(([id,p])=>({id,p}));if(o.o)e.out=o.o;if(o.b)e.inb=o.b;if(o.ri)e.rin=o.ri;if(o.fq)e.fq=o.fq;if(o.en)e.energy=o.en;if(o.ch)e.charge=o.ch;if(o.p)e.prog=o.p;if(o.c)e.crafting=true;if(o.bu)e.buf=o.bu;if(o.m){e.mods=o.m;calcMods(e)}if(o.pb)e.pb=o.pb;if(o.tq)e._tq=o.tq}
+  retunnel();
+  for(const e of ents)if(e._tq){if(e.role==='in'&&e.pair)e.tq=e._tq.map(([id,t])=>({id,t}));else e._tq.forEach(([id])=>addInv(id));delete e._tq}
+  rq=Array.isArray(s.rq)?s.rq.filter(id=>TECH_BY[id]):[];
+  if(s.cam){cam.x=s.cam.x;cam.y=s.cam.y;zoom=s.cam.z||1}
+  return true;
+}
+function save(){try{localStorage.setItem(SAVE_KEY,serialize())}catch(e){}}
+setInterval(()=>save(),20000);
+addEventListener('visibilitychange',()=>{if(document.hidden)save()});
+addEventListener('pagehide',()=>save());
+
+// ================== WEBSITE: ACCOUNTS, SAVE SLOTS, CLOUD SAVE ==================
+let gameReady=false,loopStarted=false,iconsMade=false,me=null,slot=1,guest=false,cloudBusy=false,lastCloudOk=0,saveLabel='';
+let gateView='login',slotData=null,slotDelArm=0,gateErr='',gateBusy=false;
+const gateEl=$('gate'),gboxEl=$('gbox'),acctBtn=$('acctBtn');
+const GUEST_KEY=s=>`foundryline_guest_slot_${s}`;
+async function api(p,opt={}){
+  const r=await fetch('/api'+p,{credentials:'same-origin',...opt,headers:{'Content-Type':'application/json',...(opt.headers||{})}});
+  let j={};try{j=await r.json()}catch(e){}
+  if(!r.ok){const er=new Error(j.error||`Request failed (${r.status})`);er.status=r.status;throw er}
+  return j;
+}
+function metaNow(){return{playTime:Math.floor(playTime),techs:techs.size,buildings:ents.length-1,won,day:Math.floor(playTime/DAY)+1}}
+function ago(iso){if(!iso)return'';const s=Math.max(0,(Date.now()-new Date(iso).getTime())/1000);if(s<60)return'just now';if(s<3600)return Math.floor(s/60)+' min ago';if(s<86400)return Math.floor(s/3600)+' h ago';return Math.floor(s/86400)+' days ago'}
+function setSaveLabel(t){saveLabel=t;renderAcctBtn()}
+function renderAcctBtn(){acctBtn.innerHTML=`${esc(guest?'Guest':me?me.username:'Account')} <kbd>${esc(saveLabel||'menu')}</kbd>`}
+
+// ---- local + cloud saving (replaces the single-player save) ----
+save=function(){
+  if(!gameReady)return;
+  let data;try{data=serialize()}catch(e){return}
+  if(guest){try{localStorage.setItem(GUEST_KEY(slot),JSON.stringify({data,meta:metaNow(),at:new Date().toISOString()}));setSaveLabel('saved')}catch(e){setSaveLabel('storage full')}}
+  else if(me){try{localStorage.setItem(`foundryline_backup_${me.username}_${slot}`,data)}catch(e){}}
+};
+async function cloudSave(){
+  if(!gameReady||guest||!me||cloudBusy)return true;
+  cloudBusy=true;setSaveLabel('saving');
+  try{await api('/saves/'+slot,{method:'PUT',body:JSON.stringify({data:serialize(),meta:metaNow()})});lastCloudOk=Date.now();setSaveLabel('saved');return true}
+  catch(e){if(e.status===401){setSaveLabel('signed out');toast('You were signed out. Open the account menu to log in again.')}else setSaveLabel('not saved');return false}
+  finally{cloudBusy=false}
+}
+setInterval(()=>{if(gameReady&&!guest)cloudSave()},45000);
+setInterval(()=>{if(gameReady&&!guest&&lastCloudOk)setSaveLabel(Date.now()-lastCloudOk<90000?'saved':'saved '+ago(new Date(lastCloudOk).toISOString()))},30000);
+addEventListener('visibilitychange',()=>{if(document.hidden&&gameReady&&!guest)cloudSave()});
+addEventListener('pagehide',()=>{
+  if(!gameReady||guest||!me)return;
+  try{const body=JSON.stringify({data:serialize(),meta:metaNow()});if(body.length<60000)navigator.sendBeacon('/api/saves/'+slot,new Blob([body],{type:'application/json'}))}catch(e){}
+});
+addEventListener('beforeunload',ev=>{if(gameReady&&!guest&&me&&Date.now()-lastCloudOk>50000){cloudSave();ev.preventDefault();ev.returnValue=''}});
+
+// ---- blueprint sync ----
+let bpTimer=null;
+saveBP=function(){
+  try{localStorage.setItem(BP_KEY,JSON.stringify(blueprints))}catch(e){}
+  if(me&&!guest){clearTimeout(bpTimer);bpTimer=setTimeout(()=>api('/blueprints',{method:'PUT',body:JSON.stringify({blueprints})}).catch(()=>{}),1500)}
+};
+async function syncBlueprints(){
+  try{const r=await api('/blueprints');const list=(r.blueprints||[]).filter(validBP);
+    if(list.length)blueprints=list;else if(blueprints.length)saveBP()}catch(e){}
+}
+
+// ---- gate screens ----
+function showGate(view){gameReady=false;gateView=view;gateErr='';slotDelArm=0;closeAll();gateEl.hidden=false;renderGate();if(view==='slots')loadSlots()}
+function renderGate(){
+  if(gateView==='login'||gateView==='register'){
+    const reg=gateView==='register';
+    gboxEl.className='gbox panel';
+    gboxEl.innerHTML=`<h1 class="glogo">Foundry<span>Line</span></h1>
+      <p class="gsub">Build a factory, automate every step, and launch a rocket. Log in to keep your factories in the cloud and play from any computer.</p>
+      <div class="gtabs"><button class="btn ${reg?'':'on'}" data-g="tab-login" type="button">Log in</button><button class="btn ${reg?'on':''}" data-g="tab-register" type="button">Create account</button></div>
+      <form id="authForm" autocomplete="on" novalidate>
+        <div class="field"><label for="gUser">Username</label><input id="gUser" name="username" autocomplete="username" maxlength="24" required>${reg?'<small>3–24 letters, numbers, dashes or underscores.</small>':''}</div>
+        <div class="field"><label for="gPass">Password</label><input id="gPass" name="password" type="password" autocomplete="${reg?'new-password':'current-password'}" maxlength="200" required>${reg?'<small>At least 8 characters.</small>':''}</div>
+        <div class="gerr" id="gErr" role="alert">${esc(gateErr)}</div>
+        <button class="btn pri gbtn" type="submit" ${gateBusy?'disabled':''}>${gateBusy?'Please wait…':reg?'Create account':'Log in'}</button>
+      </form>
+      <div class="gor">or</div>
+      <button class="btn gbtn" data-g="guest" type="button">Play as guest</button>
+      <p class="gnote">Guest factories save only in this browser. You can create an account later.</p>`;
+    const u=$('gUser');if(u)u.focus();
+    $('authForm').addEventListener('submit',ev=>{ev.preventDefault();doAuth(reg)});
+    return;
+  }
+  gboxEl.className='gbox panel wide';
+  const who=guest?'Playing as guest · saves stay in this browser':`Signed in as ${esc(me.username)}`;
+  let cards='';
+  if(!slotData)cards='<p class="gsub">Loading your factories…</p>';
+  else{
+    cards='<div class="slots3">'+[1,2,3].map(s=>{const sv=slotData.find(x=>x.slot===s);
+      if(!sv)return`<div class="scard empty"><div class="sn">Slot ${s}</div><div class="st2">Empty</div><div class="sm2">Start a fresh world with a new map.</div><div class="row"><button class="btn pri sm" data-g="new" data-s="${s}" type="button">Start new factory</button></div></div>`;
+      const m=sv.meta||{};
+      return`<div class="scard"><div class="sn">Slot ${s}${m.won?' · Launched':''}</div><div class="st2">Day ${m.day||1}</div>
+        <div class="sm2">${m.techs||0} techs · ${m.buildings||0} buildings<br>Played ${fmtTime(m.playTime||0)}<br>Saved ${ago(sv.updated_at)}</div>
+        <div class="row"><button class="btn pri sm" data-g="open" data-s="${s}" type="button">Continue</button>${slotDelArm===s?`<button class="btn sm danger" data-g="del2" data-s="${s}" type="button">Delete for good</button><button class="btn sm" data-g="del0" type="button">Keep</button>`:`<button class="btn sm" data-g="del" data-s="${s}" type="button">Delete</button>`}</div></div>`}).join('')+'</div>';
+  }
+  gboxEl.innerHTML=`<div class="ghead"><div><h1 class="glogo" style="font-size:38px">Foundry<span>Line</span></h1><p class="gwho">${who}</p></div>
+    <div class="row" style="margin-top:0">${guest?'<button class="btn sm" data-g="toLogin" type="button">Log in or create account</button>':'<button class="btn sm" data-g="logout" type="button">Log out</button>'}</div></div>
+    <p class="gsub">Pick a factory to continue, or start a new one. You have three save slots.</p>
+    <div class="gerr" role="alert">${esc(gateErr)}</div>${cards}`;
+}
+async function doAuth(reg){
+  const username=$('gUser').value.trim(),password=$('gPass').value;
+  if(!username||!password){gateErr='Enter a username and password.';$('gErr').textContent=gateErr;return}
+  gateBusy=true;gateErr='';renderGateKeep(username);
+  try{const r=await api(reg?'/register':'/login',{method:'POST',body:JSON.stringify({username,password})});
+    me={username:r.username};guest=false;gateBusy=false;await syncBlueprints();renderAcctBtn();showGate('slots')}
+  catch(e){gateBusy=false;gateErr=e.message||'Could not reach the server.';renderGateKeep(username)}
+}
+function renderGateKeep(username){renderGate();const u=$('gUser');if(u)u.value=username;const p=$('gPass');if(p&&!gateBusy)p.focus()}
+async function loadSlots(){
+  slotData=null;renderGate();
+  if(guest){
+    slotData=[];for(let s=1;s<=3;s++){try{const v=localStorage.getItem(GUEST_KEY(s));if(v){const o=JSON.parse(v);slotData.push({slot:s,meta:o.meta,updated_at:o.at})}}catch(e){}}
+    renderGate();return}
+  try{const r=await api('/saves');slotData=r.saves||[]}
+  catch(e){if(e.status===401){me=null;showGate('login');return}gateErr=e.message;slotData=[]}
+  renderGate();
+}
+async function openSlot(s,isNew){
+  slot=s;let data=null;
+  if(!isNew){
+    if(guest){try{data=JSON.parse(localStorage.getItem(GUEST_KEY(s))).data}catch(e){data=null}}
+    else{try{data=(await api('/saves/'+s)).data}catch(e){gateErr=e.message;renderGate();return}}
+  }
+  beginGame(data);
+}
+function beginGame(str){
+  if(!iconsMade){makeIcons();iconsMade=true}
+  closeAll();
+  let ok=false;if(str){try{ok=load(str)}catch(e){ok=false}}
+  if(!ok)newGame();
+  clearModes();
+  simSpeed=1;setSpeed(1);
+  buildHotbar();objDone=0;renderObjectives();updateUI();drawMini();updateModebar();
+  gateEl.hidden=true;gameReady=true;lastCloudOk=ok?Date.now():0;
+  setSaveLabel(guest?'browser save':'saved');
+  if(!ok){openHelp();save();cloudSave()}
+  if(!loopStarted){loopStarted=true;requestAnimationFrame(t=>{last=t;requestAnimationFrame(frame)})}
+}
+async function leaveGame(){
+  if(gameReady){save();if(!guest&&!(await cloudSave())){toast('Could not save to the cloud. Try again in a moment.');return false}}
+  gameReady=false;return true;
+}
+gateEl.addEventListener('click',async ev=>{
+  const b=ev.target.closest('[data-g]');if(!b)return;const g=b.dataset.g,s=+b.dataset.s;
+  if(g==='tab-login'){gateView='login';gateErr='';renderGate()}
+  else if(g==='tab-register'){gateView='register';gateErr='';renderGate()}
+  else if(g==='guest'){guest=true;me=null;loadBP();renderAcctBtn();showGate('slots')}
+  else if(g==='toLogin'){guest=false;showGate('register')}
+  else if(g==='logout'){try{await api('/logout',{method:'POST'})}catch(e){}me=null;loadBP();renderAcctBtn();showGate('login')}
+  else if(g==='open')openSlot(s,false);
+  else if(g==='new')openSlot(s,true);
+  else if(g==='del'){slotDelArm=s;renderGate()}
+  else if(g==='del0'){slotDelArm=0;renderGate()}
+  else if(g==='del2'){slotDelArm=0;if(guest){try{localStorage.removeItem(GUEST_KEY(s))}catch(e){}}else{try{await api('/saves/'+s,{method:'DELETE'})}catch(e){gateErr=e.message}}loadSlots()}
+});
+
+// ---- in-game account menu ----
+function acctHTML(){
+  return`<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><h2>${guest?'Guest':esc(me?me.username:'Account')}</h2>
+    <p class="sub">Slot ${slot} · ${guest?'Saving in this browser only':lastCloudOk?'Last cloud save '+ago(new Date(lastCloudOk).toISOString()):'Not saved to the cloud yet'}</p></div><button class="btn" data-act="closem">Close <kbd>Esc</kbd></button></div>
+    <div class="row">${guest?'':'<button class="btn pri" data-act="acctSave">Save now</button>'}<button class="btn" data-act="acctSwitch">Switch factory</button>${guest?'<button class="btn" data-act="acctLogin">Log in or create account</button>':'<button class="btn" data-act="acctLogout">Log out</button>'}</div>
+    ${guest?'<p class="gnote">Guest saves live in this browser. To move this factory to an account, use Help → Export save, log in, start a new slot, then Help → Import save.</p>':'<p class="gnote">The game saves to the cloud every 45 seconds and when you switch tabs.</p>'}`;
+}
+document.addEventListener('click',async ev=>{
+  const b=ev.target.closest('[data-act]');if(!b)return;const a=b.dataset.act;
+  if(a==='acct'){openModal('acct',acctHTML())}
+  else if(a==='acctSave'){const ok=await cloudSave();toast(ok?'Saved to the cloud':'Save failed. Check your connection.');if(!modalEl.hidden)sheetEl.innerHTML=acctHTML()}
+  else if(a==='acctSwitch'){if(await leaveGame())showGate('slots')}
+  else if(a==='acctLogout'){if(await leaveGame()){try{await api('/logout',{method:'POST'})}catch(e){}me=null;loadBP();renderAcctBtn();showGate('login')}}
+  else if(a==='acctLogin'){if(await leaveGame()){guest=false;showGate('register')}}
+});
+
+// ---- start ----
+(async function init(){
+  loadBP();renderAcctBtn();
+  try{const r=await api('/me');me={username:r.username};await syncBlueprints();renderAcctBtn();showGate('slots')}
+  catch(e){showGate('login')}
+})();
+
+</script>
+
+</body>
+</html>
