@@ -75,3 +75,48 @@ kbd{border-radius:4px!important;opacity:.75}
 .slot{width:44px;height:44px}
 @media(max-width:900px){#hotbar{right:calc(8px + 140px + 18px);max-width:calc(100% - 180px)}}
 @media(max-width:600px){#hotbar{right:8px;max-width:calc(100% - 16px)}}
+
+/* WORLD ART 2.0 — high-legibility command center */
+:root{--bg:#101a20;--ink:#f3f7f4;--dim:#b3c5c9;--panel:rgba(14,26,34,.96);--panel2:#263942;--line:#526a73;--amber:#ffc76b;--good:#82edb2;--bad:#ff8d80;--blue:#86d5ff;--warn:#ffd47e}
+body{font-size:15px;letter-spacing:.005em}
+.panel,.drawer,.sheet,.tech,.bp{box-shadow:0 12px 35px #02080db8,inset 0 1px #ffffff16;border-color:#61778399}
+.panel{backdrop-filter:blur(14px)}
+.brand{font-size:25px;letter-spacing:.11em;text-shadow:0 1px 12px #ffc76b25}
+.brand:before{content:'◆';font-size:13px;color:#ffc76b;margin-right:9px}
+.lab{font-size:12px;color:#c6d3d6}.lab b{font-size:13px}
+.meter{min-width:205px;padding:10px 13px}.bar{height:9px;border-radius:20px;background:#030a0f}.bar i{border-radius:20px;box-shadow:0 0 12px currentColor}
+.btn{font-size:14px;min-height:33px;border-color:#6a828b88;background:linear-gradient(180deg,#344952,#1e303a);box-shadow:inset 0 1px #ffffff1a}
+.btn:hover{background:linear-gradient(180deg,#405e6b,#2a414b);color:white;border-color:#ffc76b}
+.btn.pri{background:linear-gradient(180deg,#ffe19c,#e9a744);color:#241909}
+#obj{width:300px;padding:15px 16px}#obj li{font-size:14px;line-height:1.45}
+.h{font-size:16px;letter-spacing:.1em}.h small{font-size:12px}
+.slot{width:49px;height:49px;border-radius:9px;background:linear-gradient(155deg,#334952,#1c2b34);border-color:#728b9377;box-shadow:inset 0 1px #ffffff1c}
+.slot canvas{width:37px;height:37px}.slot .k{font-size:11px;color:#e2eaec;background:#08151caa;border-radius:3px;padding:0 3px}
+.slot:hover{transform:translateY(-3px);box-shadow:0 8px 20px #0009;border-color:#ffd07c}
+.slot.sel{background:linear-gradient(155deg,#615037,#302c25);box-shadow:inset 0 0 0 2px #ffd07c,0 0 20px #f7bc5366}
+#hotbar{gap:6px;padding:8px;border-radius:12px;max-width:calc(100% - 205px)}.grp{gap:5px;padding-right:9px;margin-right:5px}
+#mini{width:185px;height:185px;border-radius:11px;border:2px solid #78919b;box-shadow:0 14px 40px #000a}
+#tip,#hover{background:#12232bf5!important;border:1px solid #6b8a92!important;border-radius:10px!important;box-shadow:0 10px 30px #000a}
+#tip{width:285px;font-size:14px}#tip .t{font-size:20px}#hover .ht{font-size:18px}
+.drawer{width:370px;padding:16px;border-radius:11px}#inspector{width:345px;padding:16px;border-radius:11px}
+.ititle{font-size:26px}.sec>.lbl{font-size:12px;color:#d2dee0}.kv{font-size:14px;padding:5px 0}.kv b{font-size:13px}
+.it{border-radius:8px;background:linear-gradient(160deg,#31444d,#1b2d35);border-color:#59727b}.it img{width:35px;height:35px}.it span{font-size:11px;color:#d1dcdf}
+.pick button{border-radius:7px;background:#283d47;border-color:#6a848d}.pick button img{width:28px;height:28px}
+.tech{border-radius:10px;padding:13px}.tech .nm{font-size:20px}.tech p{font-size:14px;color:#cad7d9}.tech.locked{opacity:.7}.tech.done{opacity:.72}
+.sheet{border-radius:13px;padding:22px 26px}.sheet h2{font-size:36px}.sheet .sub{font-size:15px;color:#c5d4d8}
+#modebar{background:#142730f2;border:1px solid #78919b;border-radius:10px;box-shadow:0 8px 25px #0009}
+@media(max-width:1100px){#top{gap:5px}.meter{min-width:145px}.brand{font-size:21px}#obj{width:250px}#hotbar{left:8px;right:8px;max-width:calc(100% - 16px);bottom:8px}#mini{width:130px;height:130px;bottom:90px}.drawer{width:min(340px,calc(100vw - 32px))}#inspector{width:min(320px,calc(100vw - 32px))}}
+@media(max-width:680px){.brand{font-size:19px}.meter{min-width:120px;padding:7px}.lab{font-size:10px}#obj{top:auto;bottom:157px;right:8px;width:min(230px,55vw);max-height:150px;overflow:auto}.slot{width:43px;height:43px}.slot canvas{width:33px;height:33px}#hotbar{right:8px;left:8px}#mini{width:105px;height:105px;bottom:190px}}
+
+/* ---- final layout fixes (applied after every overhaul layer above) ---- */
+/* Hotbar: centered between the left edge and the minimap, wraps to a second row instead of sliding under the minimap or clipping tools */
+#hotbar{left:12px;right:calc(16px + 185px + 22px);margin-inline:auto;width:fit-content;max-width:calc(100% - 12px - 223px);flex-wrap:wrap;justify-content:center;overflow:visible;row-gap:6px}
+#modebar{bottom:var(--botH,80px)}
+@media(max-width:1100px){#hotbar{right:12px;max-width:calc(100% - 24px)}#mini{bottom:var(--botH,90px)}#modebar{bottom:calc(var(--botH,90px) + 4px)}}
+@media(max-width:680px){#mini{bottom:calc(var(--botH,90px) + 4px)}#obj{bottom:calc(var(--botH,90px) + 115px)}}
+/* the overhaul's logo glyph must not inherit the panel highlight line */
+.brand::before,.brand:before{position:static;height:auto;background:none;left:auto;right:auto;top:auto}
+/* side panels stop above the hotbar and minimap, whatever their current heights */
+.drawer,#inspector{box-sizing:border-box}
+.drawer{max-height:calc(100vh - var(--topH,66px) - var(--botH,90px) - 10px)}
+#inspector{max-height:calc(100vh - var(--topH,66px) - max(var(--botH,90px), 226px) - 10px)}

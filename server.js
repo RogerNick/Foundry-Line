@@ -186,6 +186,14 @@ const server = http.createServer(async (req, res) => {
     }
     if (p.startsWith('/api/')) return send(res, 404, { error: 'Not found.' });
     if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'Method not allowed');
+    if (p.startsWith('/assets/illustrated/')) {
+      const fileName = p.slice('/assets/illustrated/'.length);
+      if (!/^[a-z0-9_-]+\.svg$/.test(fileName)) return send(res, 404, 'Not found');
+      return fs.readFile(path.join(__dirname, 'public', 'assets', 'illustrated', fileName), (err, data) => {
+        if (err) return send(res, 404, 'Not found');
+        send(res, 200, data, { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=86400' });
+      });
+    }
     fs.readFile(INDEX, (err, html) => {
       if (err) return send(res, 500, 'The game page is missing. Run: node build/build.js');
       send(res, 200, html, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
