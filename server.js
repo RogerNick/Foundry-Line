@@ -148,7 +148,7 @@ async function putSave(req, res, user, m) {
   if (typeof data !== 'string' || !data.startsWith('{')) return send(res, 400, { error: 'Save data is missing.' });
   const m2 = meta && typeof meta === 'object' ? {
     playTime: Number(meta.playTime) || 0, techs: Number(meta.techs) || 0, buildings: Number(meta.buildings) || 0,
-    day: Number(meta.day) || 1, won: !!meta.won,
+    day: Number(meta.day) || 1, won: !!meta.won, planets: Math.min(9, Number(meta.planets) || 1),
   } : {};
   db.putSave(user.id, slot, data, m2);
   send(res, 200, { ok: true, savedAt: new Date().toISOString() });

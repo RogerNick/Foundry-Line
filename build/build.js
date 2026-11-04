@@ -34,6 +34,10 @@ const j = game.lastIndexOf('</script>');
 if (i < 0 || j < 0) throw new Error('Build step could not find the boot block.');
 game = game.slice(0, i) + boot + '\n' + game.slice(j);
 
+// 5. Put the machine and terrain illustrations inside the page, so the repo doesn't need the asset folder.
+const art = fs.existsSync(path.join(dir, 'illustrations.json')) ? read('illustrations.json') : '{}';
+swap('<script>', '<script>window.ILLUSTRATIONS=' + art.replace(/</g, '\\u003c') + ';</script>\n<script>');
+
 const out = head + game.replace(/^\s+/, '') + '\n</body>\n</html>\n';
 fs.writeFileSync(path.join(dir, '..', 'public', 'index.html'), out);
 console.log('Built public/index.html (' + Math.round(out.length / 1024) + ' KB)');

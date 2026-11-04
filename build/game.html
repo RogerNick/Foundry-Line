@@ -36,6 +36,8 @@ body{background:var(--bg);color:var(--ink);font:500 14px/1.4 var(--body);overflo
 .btn.sm{padding:5px 8px;font-size:12px}
 kbd{font:500 10px var(--mono);border:1px solid #fff3;border-bottom-width:2px;border-radius:3px;padding:1px 4px;color:var(--dim)}
 .btn.pri kbd{color:var(--amber-ink);border-color:#0004}
+#pbar{position:fixed;left:max(12px,env(safe-area-inset-left,0px));top:var(--topH,66px);z-index:4;display:flex;gap:4px;padding:5px;flex-wrap:wrap;max-width:calc(100vw - 360px)}
+#pbar .btn{gap:7px}#pbar .btn.on{border-color:var(--amber);color:var(--amber);background:#f2a93b18}#pbar .pd{width:9px;height:9px;border-radius:50%;flex:none}#pbar .pw{width:7px;height:7px;border-radius:50%;background:var(--bad);margin-left:-3px}
 #obj{position:fixed;right:max(12px,env(safe-area-inset-right,0px));top:var(--topH,66px);width:280px;padding:10px 12px;z-index:4}
 .h{font:700 13px/1 var(--disp);letter-spacing:.14em;text-transform:uppercase;color:var(--amber);display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .h small{font:500 11px var(--mono);color:var(--dim);letter-spacing:0}
@@ -222,6 +224,8 @@ table.st img{width:20px;height:20px;vertical-align:middle;margin-right:5px}
 .alerts{display:flex;flex-direction:column;gap:5px;margin-top:10px;padding-top:9px;border-top:1px solid var(--line)}
 .al{display:flex;gap:7px;align-items:center;font-size:12.5px;font-weight:600}
 .al::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.al.algo{background:none;border:0;padding:2px 0;text-align:left;cursor:pointer;font-family:inherit}.al.algo:hover{text-decoration:underline}
+.tr-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
 .al.purple{color:#b48cff}.al.bad{color:var(--bad)}.al.warn{color:var(--warn)}.al.blue{color:var(--blue)}
 .qtag{font:600 10px var(--mono);color:var(--blue)}
 .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
@@ -270,9 +274,12 @@ body{font-size:16px;line-height:1.5}
     <button class="btn" data-act="stats">Production <kbd>P</kbd></button>
     <button class="btn" data-act="recipes">Recipes <kbd>G</kbd></button>
     <button class="btn" data-act="lib">Blueprints <kbd>B</kbd></button>
+    <button class="btn" data-act="trade" id="tradeBtn" hidden>Trade <kbd>O</kbd></button>
+    <button class="btn" data-act="ark" id="arkBtn" hidden>Ark <kbd>K</kbd></button>
     <button class="btn" data-act="help">Help <kbd>H</kbd></button>
   </div>
 </div>
+<div id="pbar" class="panel" hidden></div>
 <div id="obj" class="panel"></div>
 <div id="modebar" class="panel" hidden></div>
 <div id="hotbar" class="panel"></div>
@@ -334,9 +341,26 @@ const ITEMS={
   sci_yellow:{name:'Yellow Science',color:'#f2d23b',shape:'flask'},
   sci_white:{name:'White Science',color:'#f4f6fa',shape:'flask'},
   rocket_part:{name:'Rocket Part',color:'#e8e8ee',shape:'rocket'},
+  tungsten_ore:{name:'Tungsten Ore',color:'#c9b27a',shape:'ore',edge:'#4a3c1c'},
+  tungsten:{name:'Tungsten',color:'#a7a08c',shape:'ingot'},
+  heat_shield:{name:'Heat Shield',color:'#e07a3a',shape:'lds'},
+  helium_ice:{name:'Helium Ice',color:'#cfe8ff',shape:'crystal',edge:'#5a7aa0'},
+  helium3:{name:'Helium-3',color:'#6fd8f0',shape:'canister'},
+  cryo_crystal:{name:'Cryo Crystal',color:'#7af0e8',shape:'crystal',edge:'#1a6a70'},
+  superconductor:{name:'Superconductor',color:'#40c8d8',shape:'wire'},
+  fusion_cell:{name:'Fusion Cell',color:'#ff7ad8',shape:'rod'},
+  biomass:{name:'Biomass',color:'#5aa04a',shape:'ore',edge:'#1f4a1a'},
+  bio_catalyst:{name:'Bio Catalyst',color:'#b8f04a',shape:'pellet'},
+  sci_cosmic:{name:'Cosmic Science',color:'#ff8ad8',shape:'flask'},
+  hull_segment:{name:'Hull Segment',color:'#c8ccd4',shape:'frame'},
+  reactor_core:{name:'Reactor Core',color:'#ff7ad8',shape:'battery'},
+  habitat_module:{name:'Habitat Module',color:'#8ad06a',shape:'lds'},
+  nav_core:{name:'Nav Core',color:'#6ab8ff',shape:'chip'},
 };
-const ORE_ITEM=[null,'iron_ore','copper_ore','coal','stone','quartz','crude_oil','uranium_ore'];
-const ORE_NAME=[null,'Iron ore','Copper ore','Coal','Stone','Quartz','Oil seep','Uranium ore'];
+const ORE_ITEM=[null,'iron_ore','copper_ore','coal','stone','quartz','crude_oil','uranium_ore','tungsten_ore','helium_ice','cryo_crystal','biomass',null];
+const VENT=12;
+const ORE_HINT={12:'A geothermal vent. Build a Geothermal Plant on it for steady power (Tungsten research).'};
+const ORE_NAME=[null,'Iron ore','Copper ore','Coal','Stone','Quartz','Oil seep','Uranium ore','Tungsten ore','Helium ice','Cryo crystals','Bloom','Geothermal vent'];
 const ORE_COL=[null,
   {c:'#8fa3b8',dark:'#3b4654',hi:'#dfe8f2',tint:'rgba(120,150,190,.10)',mini:'#6b7d90'},
   {c:'#d47a45',dark:'#5c2b14',hi:'#ffc79a',tint:'rgba(212,122,69,.12)',mini:'#9a5530'},
@@ -345,8 +369,13 @@ const ORE_COL=[null,
   {c:'#ddd6ff',dark:'#5c5585',hi:'#ffffff',tint:'rgba(200,190,255,.12)',mini:'#a59ed0'},
   {c:'#0e0c0b',dark:'#000000',hi:'#8a7cff',tint:'rgba(0,0,0,.3)',mini:'#2a1f3a'},
   {c:'#5fd35a',dark:'#1d4a1b',hi:'#d5ffcc',tint:'rgba(95,211,90,.12)',mini:'#3e9a3a'},
+  {c:'#c9b27a',dark:'#4a3c1c',hi:'#fff0c0',tint:'rgba(201,178,122,.12)',mini:'#9a8650'},
+  {c:'#cfe8ff',dark:'#5a7aa0',hi:'#ffffff',tint:'rgba(200,230,255,.14)',mini:'#a8c8e8'},
+  {c:'#7af0e8',dark:'#1a6a70',hi:'#e8fffd',tint:'rgba(120,240,232,.12)',mini:'#4ab8b0'},
+  {c:'#6cc050',dark:'#245a1a',hi:'#e0ffb0',tint:'rgba(110,190,80,.14)',mini:'#4a9a3a'},
+  {c:'#ff7a2a',dark:'#5a1a08',hi:'#ffe0a0',tint:'rgba(255,110,40,.18)',mini:'#e05a1a'},
 ];
-const FUEL={coal:150,solid_fuel:900,fuel_rod:60000};
+const FUEL={coal:150,solid_fuel:900,fuel_rod:60000,fusion_cell:120000};
 
 // Base pace: a Mining Drill makes 30 ore a minute. Times are chosen so machines pair up in whole-number ratios.
 const SMELT={
@@ -355,6 +384,7 @@ const SMELT={
   stone:{out:'brick',n:2,t:4},                    // 30 stone -> 15 bricks /min
   quartz:{out:'silicon',n:1,t:6,tech:'quartz'},   // 10 /min : 1 drill feeds 3 smelters
   iron_plate:{out:'steel',n:3,t:6,tech:'steel'},  // 30 plates -> 10 steel /min : 1 iron smelter feeds 1 steel smelter
+  tungsten_ore:{out:'tungsten',n:2,t:4,tech:'tungsten'}, // 30 ore -> 15 tungsten /min : 1 drill feeds 1 smelter
 };
 const RECIPES={
   gear:{in:{iron_plate:2},out:1,t:2,tech:'automation'},                       // 30/min, eats 60 plates = 2 smelters
@@ -385,6 +415,16 @@ const RECIPES={
   rocket_fuel:{in:{solid_fuel:6},out:1,t:18,tech:'rocket_fuel'},              // from 1 solid fuel refinery
   sci_white:{in:{rocket_fuel:1,lds:1,battery:3},out:3,t:18,tech:'sci6'},      // 1 rocket fuel maker each
   rocket_part:{in:{lds:2,rocket_fuel:2,processor:2},out:1,t:36,tech:'rocketry'},
+  heat_shield:{in:{tungsten:3,steel:2},out:1,t:12,tech:'tungsten'},             // 5/min; 1 tungsten smelter, 1 steel smelter
+  helium3:{in:{helium_ice:2},out:1,t:4,tech:'cryogenics',cat:'refine'},        // 15/min from 1 drill
+  superconductor:{in:{cryo_crystal:2,copper_plate:2,helium3:1},out:1,t:4,tech:'cryogenics'}, // 15/min; 1 cryo drill, 1 smelter, 1 helium refinery
+  fusion_cell:{in:{helium3:3,superconductor:1},out:1,t:12,tech:'fusion',cat:'refine'}, // 5/min; 1 helium refinery
+  bio_catalyst:{in:{biomass:2,sulfur:1},out:1,t:4,tech:'biotech',cat:'refine'}, // 15/min; 1 bloom drill
+  sci_cosmic:{in:{heat_shield:1,superconductor:1,bio_catalyst:1},out:2,t:12,tech:'sci7'}, // 10/min; 1 heat shield maker each
+  hull_segment:{in:{heat_shield:4,lds:4,frame:2},out:1,t:24,tech:'ark'},
+  reactor_core:{in:{fusion_cell:2,superconductor:4,processor:4},out:1,t:24,tech:'ark'},
+  habitat_module:{in:{bio_catalyst:4,plastic:6,concrete:6},out:1,t:24,tech:'ark'},
+  nav_core:{in:{sci_cosmic:2,processor:4,superconductor:2},out:1,t:24,tech:'ark'},
 };
 const HANDCRAFT=['gear','wire','circuit'];
 const MODS={speed_module:{spd:.2,pow:.4,prod:0},speed_module2:{spd:.35,pow:.6,prod:0},prod_module:{spd:-.1,pow:.4,prod:.08},prod_module2:{spd:-.15,pow:.7,prod:.14}};
@@ -395,12 +435,16 @@ const BUILD={
   belt3:{name:'Express Conveyor',cat:'belt',cost:{gear:2,steel:1},speed:5,rail:'#4aa0e8',chev:'rgba(74,160,232,.6)',tech:'belt3',next:'belt4',desc:'Carries 20 items a second.'},
   belt4:{name:'Hyper Conveyor',cat:'belt',cost:{gear:2,steel:1,plastic:2},speed:7.5,rail:'#c070f0',chev:'rgba(192,112,240,.6)',tech:'belt4',desc:'The fastest belt: 30 items a second.'},
   splitter:{name:'Splitter',cat:'logi',cost:{iron_plate:5,gear:2},tech:'logistics',desc:'Deals items out left, front and right in turn.'},
+  psplit:{name:'Priority Splitter',cat:'logi',cost:{iron_plate:6,gear:5},tech:'logistics',desc:'Sends everything out one chosen exit first. Only when that exit backs up do items overflow to the others. Click it to pick the priority exit.'},
   filter:{name:'Sorter',cat:'logi',cost:{iron_plate:6,gear:2,copper_plate:2},tech:'logistics',desc:'Your chosen item exits to the left. Everything else goes straight through.'},
   chest:{name:'Buffer Crate',cat:'logi',cost:{iron_plate:8},desc:'Holds 400 items and feeds them out the front. Smooths bursty supply.'},
   tunnel:{name:'Belt Tunnel',cat:'logi',cost:{iron_plate:10,gear:5},tech:'logistics',desc:'Place two facing the same way, up to 6 tiles apart. Items dive under whatever sits between them.'},
   depot:{name:'Supply Depot',cat:'logi',cost:{iron_plate:10,gear:5},tech:'logistics',desc:'Pick an item. It pulls that item out of your inventory and onto a belt, 10 a second.'},
-  miner:{name:'Mining Drill',cat:'miner',cost:{iron_plate:10,copper_plate:3},power:3,rate:0.5,slots:1,ores:[1,2,3,4,5,7],next:'miner2',desc:'Place on ore. Mines 30 ore a minute, forever, and pushes it out the front. One drill feeds one Smelter.'},
-  miner2:{name:'Drill Mk2',cat:'miner',cost:{steel:8,circuit:6,gear:8},power:6,rate:1,slots:2,ores:[1,2,3,4,5,7],tech:'miner2',desc:'Mines 60 ore a minute (2×) with two module slots.'},
+  silo:{name:'Cargo Silo',cat:'logi',cost:{steel:30,processor:6,concrete:30,lds:6},power:20,tech:'launch',desc:'Ships up to 400 items to another planet. Belt cargo in or load it from storage, pick a destination, and it launches when full. Each launch burns 5 Rocket Fuel.'},
+  dport:{name:'Drone Port',cat:'logi',cost:{superconductor:10,processor:10,lds:10,heat_shield:5},power:10,tech:'drones',desc:'Cargo drones fly items between ports on the same channel, anywhere on this planet. Set a port to Send (belt items in) or Receive (items come out the front).'},
+  uplink:{name:'Uplink',cat:'logi',cost:{processor:6,steel:20,motor:6},power:15,tech:'uplink',desc:'Place anywhere. Belt items in from any side and they go straight to storage, like a remote Hub. Sends up to 720 a minute (one Fast Conveyor) and draws 450 kW while sending.'},
+  miner:{name:'Mining Drill',cat:'miner',cost:{iron_plate:10,copper_plate:3},power:3,rate:0.5,slots:1,ores:[1,2,3,4,5,7,8,9,10,11],next:'miner2',desc:'Place on ore. Mines 30 ore a minute, forever, and pushes it out the front. One drill feeds one Smelter.'},
+  miner2:{name:'Drill Mk2',cat:'miner',cost:{steel:8,circuit:6,gear:8},power:6,rate:1,slots:2,ores:[1,2,3,4,5,7,8,9,10,11],tech:'miner2',desc:'Mines 60 ore a minute (2×) with two module slots.'},
   pump:{name:'Pumpjack',cat:'miner',cost:{steel:10,gear:10,circuit:5},power:5,rate:0.5,slots:2,ores:[6],tech:'oil',desc:'Place on a dark oil seep. Pumps 30 barrels of crude oil a minute, enough for one Refinery.'},
   furnace:{name:'Smelter',cat:'smelter',cost:{brick:6,iron_plate:2},power:4,spd:1,slots:1,next:'furnace2',desc:'Smelts ore into plates at 1× speed: 30 ore a minute, matching one drill. Picks its recipe from the first item it gets.'},
   furnace2:{name:'Arc Furnace',cat:'smelter',cost:{steel:8,adv_circuit:3,brick:10},power:9,spd:2,slots:2,tech:'furnace2',desc:'Smelts at 2× speed with two module slots. Matches one Drill Mk2.'},
@@ -408,17 +452,19 @@ const BUILD={
   assembler2:{name:'Assembler Mk2',cat:'crafter',rc:'asm',cost:{steel:6,circuit:6,gear:6},power:10,spd:2,slots:2,tech:'assembler2',next:'assembler3',desc:'Crafts at 2× speed with two module slots.'},
   assembler3:{name:'Assembler Mk3',cat:'crafter',rc:'asm',cost:{speed_module:1,processor:4,frame:2},power:18,spd:4,slots:4,tech:'assembler3',desc:'Crafts at 4× speed with four module slots.'},
   refinery:{name:'Refinery',cat:'crafter',rc:'refine',cost:{steel:15,gear:10,circuit:10,brick:10},power:12,spd:1,slots:2,tech:'oil',desc:'Crafts chemical recipes at 1× speed: plastic, sulfur, solid fuel, batteries and uranium.'},
-  pole:{name:'Power Pole',cat:'pole',cost:{iron_plate:1,copper_plate:2},radius:2,reach:7,next:'substation',desc:'Powers machines in the 5×5 area around it and links by wire to other poles up to 7 tiles away.'},
-  pole2:{name:'Big Pole',cat:'pole',cost:{steel:2,copper_plate:4},radius:1,reach:16,tech:'steel',desc:'Carries power far: links to poles up to 16 tiles away. Powers only the 3×3 around it.'},
-  substation:{name:'Substation',cat:'pole',cost:{steel:6,adv_circuit:3,copper_plate:8},radius:4,reach:12,tech:'structures',desc:'Powers a big 9×9 area and links to poles up to 12 tiles away.'},
+  pole:{name:'Power Pole',cat:'pole',cost:{iron_plate:1,copper_plate:2},radius:2,reach:7,next:'pole2',desc:'Powers machines in the 5×5 area around it and links by wire to poles up to 7 tiles away.'},
+  pole2:{name:'Big Pole',cat:'pole',cost:{steel:2,copper_plate:4},radius:3,reach:12,tech:'steel',next:'substation',desc:'Powers a 7×7 area and links by wire to poles up to 12 tiles away.'},
+  substation:{name:'Substation',cat:'pole',cost:{steel:6,adv_circuit:3,copper_plate:8},radius:4,reach:18,tech:'structures',desc:'Powers a 9×9 area and links by wire to poles up to 18 tiles away.'},
   generator:{name:'Coal Generator',cat:'power',radius:1,reach:5,cost:{iron_plate:15,copper_plate:5,brick:5},cap:30,fuels:['coal','solid_fuel'],fmax:20,desc:'Burns coal or solid fuel. Only burns what the grid needs.'},
   wind:{name:'Wind Turbine',cat:'power',radius:1,reach:5,cost:{iron_plate:20,gear:10,copper_plate:10},cap:12,tech:'wind',desc:'Free power that rises and falls with the wind.'},
   solar:{name:'Solar Array',cat:'power',radius:1,reach:5,cost:{silicon:5,steel:3,copper_plate:5},cap:14,tech:'solar',desc:'Free power during the day. Nothing at night.'},
   accumulator:{name:'Accumulator',cat:'power',radius:1,reach:5,cost:{battery:5,iron_plate:4},store:4000,rate:25,tech:'accumulator',desc:'Stores spare wind and solar power, then releases it when the grid runs short.'},
   reactor:{name:'Nuclear Reactor',cat:'power',radius:2,reach:6,cost:{concrete:50,steel:50,processor:20,frame:10},cap:300,fuels:['fuel_rod'],fmax:4,tech:'nuclear',desc:'9 MW from fuel rods. One rod lasts over three minutes at full load.'},
+  geo:{name:'Geothermal Plant',cat:'power',radius:1,reach:5,cost:{steel:10,tungsten:12,brick:10},cap:40,onOre:[12],tech:'tungsten',desc:'Sits on a glowing vent and makes a steady 1.2 MW, day and night. Only Cinder has vents.'},
+  fusion:{name:'Fusion Reactor',cat:'power',radius:2,reach:6,cost:{superconductor:20,heat_shield:20,processor:20,concrete:40},cap:600,fuels:['fusion_cell'],fmax:4,tech:'fusion',desc:'18 MW from fusion cells. One cell lasts over three minutes at full load.'},
 };
 const TUN_RANGE=6;
-const GROUPS=[['belt','belt2','belt3','belt4'],['tunnel','splitter','filter','chest','depot'],['miner','miner2','pump'],['furnace','furnace2'],['assembler','assembler2','assembler3'],['refinery'],['pole','pole2','substation'],['generator','wind','solar','accumulator','reactor']];
+const GROUPS=[['belt','belt2','belt3','belt4'],['tunnel','splitter','psplit','filter','chest','depot','uplink','silo','dport'],['miner','miner2','pump'],['furnace','furnace2'],['assembler','assembler2','assembler3'],['refinery'],['pole','pole2','substation'],['generator','wind','solar','accumulator','reactor','geo','fusion']];
 const HOT=GROUPS.flat();
 const TOOLS=[{id:'copy',name:'Copy area',key:'C',desc:'Drag a box over buildings to save them as a blueprint, recipes included. Then click to paste copies.'},
   {id:'upgrade',name:'Upgrade area',key:'U',desc:'Drag a box to upgrade every building inside to its next tier. Pays the difference.'},
@@ -447,6 +493,7 @@ const TECH=[
   {id:'mining2',name:'Machine Tuning III',cost:{sci_blue:100},req:['sci3','mining1'],desc:'+25% more speed for every machine.'},
   {id:'oil',name:'Oil Processing',cost:{sci_blue:120},req:['sci3'],desc:'Pumpjack and Refinery. Plastic, sulfur and solid fuel.'},
   {id:'structures',name:'Structures',cost:{sci_blue:150},req:['sci3'],desc:'Concrete and frame recipes.'},
+  {id:'uplink',name:'Remote Uplink',cost:{sci_purple:120},req:['sci4'],desc:'The Uplink: a building that sends belted items straight to storage from anywhere on the map.'},
   {id:'modules',name:'Modules',cost:{sci_blue:150},req:['sci3'],desc:'Speed and productivity modules for machine slots.'},
   {id:'processors',name:'Processors',cost:{sci_blue:200},req:['oil'],desc:'Processor recipe: advanced circuits, plastic and sulfur.'},
   {id:'sci4',name:'Research IV',cost:{sci_blue:250,frame:20},req:['structures','processors'],desc:'Purple science packs. Each craft makes three.'},
@@ -462,7 +509,16 @@ const TECH=[
   {id:'rocket_fuel',name:'Rocket Fuel',cost:{sci_yellow:150},req:['sci5'],desc:'Rocket fuel recipe from solid fuel.'},
   {id:'sci6',name:'Research VI',cost:{sci_yellow:300},req:['rocket_fuel','nuclear'],desc:'White science packs. Each craft makes three.'},
   {id:'rocketry',name:'Rocketry',cost:{sci_white:300},req:['sci6'],desc:'Rocket part recipe.'},
-  {id:'launch',name:'Orbital Launch',cost:{rocket_part:100},req:['rocketry'],desc:'Stack 100 rocket parts in the Hub and launch. You win.'},
+  {id:'launch',name:'Colony Rocket: Cinder',cost:{rocket_part:100},req:['rocketry'],desc:'Launch a colony to Cinder, a volcanic world rich in tungsten. Unlocks the Cargo Silo for shipping between planets.'},
+  {id:'tungsten',name:'Tungsten',cost:{sci_white:150},req:['launch'],desc:'Smelt tungsten ore, make heat shields, and build Geothermal Plants on Cinder\'s vents.'},
+  {id:'colony_rime',name:'Colony Rocket: Rime',cost:{rocket_part:50,heat_shield:40},req:['tungsten'],desc:'Launch a colony to Rime, a frozen world with helium ice and cryo crystals.'},
+  {id:'cryogenics',name:'Cryogenics',cost:{sci_white:200,heat_shield:20},req:['colony_rime'],desc:'Refine helium ice into helium-3 and make superconductors.'},
+  {id:'fusion',name:'Fusion Power',cost:{sci_white:300,superconductor:40},req:['cryogenics'],desc:'Fusion cells and the 18 MW Fusion Reactor.'},
+  {id:'colony_verdant',name:'Colony Rocket: Verdant',cost:{rocket_part:50,heat_shield:40,superconductor:40},req:['cryogenics'],desc:'Launch a colony to Verdant, a jungle world where bloom grows.'},
+  {id:'biotech',name:'Biotech',cost:{sci_white:200,superconductor:20},req:['colony_verdant'],desc:'Turn biomass and sulfur into bio catalyst.'},
+  {id:'sci7',name:'Research VII',cost:{sci_white:400,heat_shield:50,superconductor:50,bio_catalyst:50},req:['biotech','fusion'],desc:'Cosmic science packs, made from parts of three worlds. Each craft makes two.'},
+  {id:'drones',name:'Cargo Drones',cost:{sci_cosmic:150},req:['sci7'],desc:'Drone Ports. Drones carry items between ports on the same channel, with no belts in between.'},
+  {id:'ark',name:'Ark Construction',cost:{sci_cosmic:300},req:['sci7'],desc:'Hull segments, reactor cores, habitat modules and nav cores, and the Ark screen (K). Build the Ark in Home orbit and launch it.'},
   {id:'rep_mine',name:'Mining Productivity',cost:{sci_white:80},rep:true,req:['sci6'],desc:'+10% bonus output from drills per level. Repeatable.'},
   {id:'rep_asm',name:'Machine Throughput',cost:{sci_white:80},rep:true,req:['sci6'],desc:'+10% speed for every machine per level. Repeatable.'},
   {id:'rep_smelt',name:'Belt Throughput',cost:{sci_white:80},rep:true,req:['sci6'],desc:'+10% speed for every conveyor per level. Repeatable.'},
@@ -473,12 +529,16 @@ const TECH_BY={}; TECH.forEach(t=>TECH_BY[t.id]=t);
 
 // ================== STATE ==================
 let seed, ore, ents, grid, inv, techs, techLv, active, paid, delivered, made, playTime, hub;
+// terrain and rich-ore layers, planned (ghost) buildings, and which planet type/generator the loaded world uses
+let terr=null, rich=null, ghosts=new Map(), ptype='home', pgen=2, cleared=new Map();
+// cargo rockets in flight between planets, recent arrivals, and how many shipments have flown
+let flights=[], tradeLog=[], shipped=0, drones=[];
 let power={demand:0,supply:0,sat:1,src:{},stored:0,storeCap:0}, buckets=[], curMade={}, curDel={}, bucketT=0, rBudget=0;
 // per-second and per-minute history: m = made, u = used, ms/us = by source, d = into the Hub, s = stock at the end
 let curUsed={}, curMS={}, curUS={}, minBuckets=[], secN=0;
 let won=false, launch=null, genAuto=false;
 const cam={x:HX*T+T/2,y:HY*T+T/2}; let zoom=1;
-let sel=null, rot=1, pipRecipe=null, pipFilter=null, pipMods=null, inspected=null;
+let sel=null, rot=1, pipRecipe=null, pipFilter=null, pipMods=null, pipPrio=null, inspected=null;
 let tool=null, bpSel=null, bpRot=0, blueprints=[];
 let particles=[];
 const keys=new Set();
@@ -504,7 +564,7 @@ const canAfford=c=>Object.keys(c).every(k=>(inv[k]||0)>=c[k]);
 function pay(c,src){for(const k in c){inv[k]-=c[k];if(src)addUsed(k,c[k],src)}}
 function refund(c,src){for(const k in c){inv[k]=(inv[k]||0)+c[k];if(src)addUsed(k,-c[k],src)}}
 function addInv(id,n=1){inv[id]=(inv[id]||0)+n}
-function addMade(id,n=1,src='other'){if(src!=='hand'&&src!=='craft')made[id]=(made[id]||0)+n;curMade[id]=(curMade[id]||0)+n;const o=curMS[id]||(curMS[id]={});o[src]=(o[src]||0)+n}
+function addMade(id,n=1,src='other'){if(src!=='hand'&&src!=='craft'&&src!=='import')made[id]=(made[id]||0)+n;curMade[id]=(curMade[id]||0)+n;const o=curMS[id]||(curMS[id]={});o[src]=(o[src]||0)+n}
 // fold the last 60 seconds into one minute bucket (keeps an hour of history)
 function rollMinute(){const mb={m:{},u:{},d:{},ms:{},us:{},s:{...inv},dur:60};
   for(const b of buckets){for(const key of ['m','u','d'])for(const id in b[key])mb[key][id]=(mb[key][id]||0)+b[key][id];
@@ -523,7 +583,15 @@ function blip(f=520,d=0.05,type='square',v=0.03){if(muted)return;try{if(!actx)ac
 function chord(){[392,494,587,784].forEach((f,i)=>setTimeout(()=>blip(f,0.25,'triangle',0.05),i*70))}
 
 // ================== WORLD ==================
+// Terrain codes: 0 open ground, 1 liquid (water/lava/crevasse), 2 rock ridge, 3 jungle growth (clearable)
+const isBlocked=(x,y)=>{if(!terr||!inb(x,y))return false;const t=terr[idx(x,y)];return t===1||t===2||t===3};
+const terrName=(x,y)=>{const t=terr?terr[idx(x,y)]:0,pl=PTYPES[ptype]||PTYPES.home;return t===1?pl.liqName||'Water':t===2?'Rock ridge':t===3?'Jungle growth':''};
 function genWorld(){
+  terr=new Uint8Array(W*H);rich=new Uint8Array(W*H);
+  if(ptype==='home'&&pgen<2){genClassic();chunkCache.clear();return}
+  genTerrainWorld();chunkCache.clear();
+}
+function genClassic(){
   ore=new Uint8Array(W*H);const R=mulberry(seed);
   const blob=(type,cx,cy,r)=>{for(let y=Math.floor(cy-r-3);y<=cy+r+3;y++)for(let x=Math.floor(cx-r-3);x<=cx+r+3;x++){if(!inb(x,y))continue;const d=Math.hypot(x-cx,y-cy)/r+(vnoise(x/3.1+type*17,y/3.1)-0.5)*0.7;if(d<1&&!ore[idx(x,y)])ore[idx(x,y)]=type}};
   const near=(type,d,r)=>{const a=R()*Math.PI*2;blob(type,HX+Math.cos(a)*d,HY+Math.sin(a)*d,r)};
@@ -537,6 +605,49 @@ function genWorld(){
   for(let y=HY-2;y<=HY+2;y++)for(let x=HX-2;x<=HX+2;x++)ore[idx(x,y)]=0;
   chunkCache.clear();
 }
+// Terrain-aware generator used by new worlds and every other planet.
+function genTerrainWorld(){
+  const def=PTYPES[ptype],R=mulberry(seed^0x5f3759df);ore=new Uint8Array(W*H);
+  const dist=(x,y)=>Math.hypot(x-HX,y-HY);
+  // 1. terrain
+  const lq=def.liquid||{scale:26,thr:.70},near=def.clearR||24;
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){const d=dist(x,y);if(d<near)continue;const i=idx(x,y);
+    const f=vnoise(x/lq.scale+seed%97,y/lq.scale)*0.65+vnoise(x/9+13,y/9)*0.35;
+    if(f>lq.thr)terr[i]=1;
+    else if(def.ridges!==false){const n2=vnoise(x/34+100+seed%31,y/34);if(Math.abs(n2-0.5)<0.018&&d>near+2&&vnoise(x/7,y/7+50)>0.35)terr[i]=2}}
+  for(let r=0;r<(def.rivers??2);r++){ // meandering rivers, narrow enough to tunnel under
+    let a=R()*Math.PI*2,x=HX+Math.cos(a)*(W*0.6),y=HY+Math.sin(a)*(H*0.6),dir=a+Math.PI+(R()-.5)*1.2;const w=1+Math.floor(R()*2);
+    for(let st=0;st<420;st++){dir+=(vnoise(st/14+r*40,seed%50)-.5)*0.35;x+=Math.cos(dir);y+=Math.sin(dir);
+      const d=dist(x,y);if(d<near+6){dir+=0.5;continue}
+      for(let oy=-w;oy<=w;oy++)for(let ox=-w;ox<=w;ox++){const tx=Math.round(x+ox),ty=Math.round(y+oy);if(inb(tx,ty)&&ox*ox+oy*oy<=w*w+1)terr[idx(tx,ty)]=1}
+      if(x<-5||y<-5||x>W+5||y>H+5)break}}
+  if(def.growth)for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=idx(x,y);if(terr[i]||dist(x,y)<near-6)continue;if(jungleZone(x,y))terr[i]=3}
+  // 2. ores (never on blocked terrain); guaranteed patches clear the terrain around them first
+  const clear=(cx,cy,r)=>{for(let y=Math.floor(cy-r);y<=cy+r;y++)for(let x=Math.floor(cx-r);x<=cx+r;x++)if(inb(x,y)&&Math.hypot(x-cx,y-cy)<=r)terr[idx(x,y)]=0};
+  const blob=(type,cx,cy,r)=>{for(let y=Math.floor(cy-r-3);y<=cy+r+3;y++)for(let x=Math.floor(cx-r-3);x<=cx+r+3;x++){if(!inb(x,y))continue;const i=idx(x,y);if(terr[i]&&terr[i]!==3)continue;
+    const d=Math.hypot(x-cx,y-cy)/r+(vnoise(x/3.1+type*17,y/3.1)-0.5)*0.7;if(d<1&&!ore[i])ore[i]=type}};
+  const a0=R()*Math.PI*2;
+  def.start.forEach(([t,d],k)=>{const a=a0+k*Math.PI*2/def.start.length+(R()-.5)*.5,cx=HX+Math.cos(a)*d,cy=HY+Math.sin(a)*d,r=4.3+R()*1.2;clear(cx,cy,r+2);blob(t,cx,cy,r)});
+  def.near.forEach(([t,d,r])=>{const a=R()*Math.PI*2,cx=HX+Math.cos(a)*d,cy=HY+Math.sin(a)*d;clear(cx,cy,r+2);blob(t,cx,cy,r)});
+  for(let k=0;k<def.patches;k++){const cx=8+R()*(W-16),cy=8+R()*(H-16),dd=dist(cx,cy);if(dd<26)continue;const[t,r]=def.pick(R,dd);if(t)blob(t,cx,cy,r)}
+  // 3. rich ore: none near the Hub, more and more further out, in clusters
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=idx(x,y),o=ore[i];if(!o||ORE_NORICH.has(o))continue;const d=dist(x,y);if(d<28)continue;
+    const pr=Math.min(0.32,0.04+(d-28)/220);if(vnoise(x/3.2+31,y/3.2+17)<pr)rich[i]=1}
+  // 4. everything reachable on foot from the Hub (carve a path to any cut-off pocket)
+  for(let pass=0;pass<40;pass++){const seen=floodOpen();let fixed=false;
+    for(let i=0;i<W*H;i++){if(seen[i]||isBlockedI(i))continue;const ox=i%W,oy=(i/W)|0;
+      let x=ox,y=oy;for(let g=0;g<W+H&&!seen[idx(x,y)];g++){const dx=Math.sign(HX-x),dy=Math.sign(HY-y);if(Math.abs(HX-x)>Math.abs(HY-y))x+=dx;else y+=dy;
+        for(const[ax,ay]of[[x,y],[x+1,y],[x,y+1]])if(inb(ax,ay)&&terr[idx(ax,ay)]&&terr[idx(ax,ay)]!==3)terr[idx(ax,ay)]=0}
+      fixed=true;break}
+    if(!fixed)break}
+  for(let y=HY-3;y<=HY+3;y++)for(let x=HX-3;x<=HX+3;x++){ore[idx(x,y)]=0;terr[idx(x,y)]=0}
+}
+const isBlockedI=i=>{const t=terr[i];return t===1||t===2};
+function floodOpen(){const seen=new Uint8Array(W*H),st=[idx(HX,HY)];seen[st[0]]=1;
+  while(st.length){const i=st.pop(),x=i%W,y=(i/W)|0;for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(!inb(nx,ny))continue;const j=idx(nx,ny);if(seen[j]||isBlockedI(j))continue;seen[j]=1;st.push(j)}}
+  return seen}
+function jungleZone(x,y){return vnoise(x/18+seed%71,y/18+9)>0.56}
+const ORE_NORICH=new Set([6,12]);
 function mkEnt(type,x,y,dir){
   const e={type,x,y,dir,prog:0,working:false,st:'idle',anim:Math.random()*6};
   if(isBelt(type))e.items=[];else{e.out=[];e.inb={};e.buf=[];e.heat=0;e.rr=0;e.cd=0;e.crafting=false;e.mods=[];e.ms={spd:0,pow:0,prod:0};e.pb=0}
@@ -549,13 +660,81 @@ function makeHub(){
   hub={type:'hub',x:HX,y:HY,dir:0,pulse:0,rot:0,lastItem:null,st:'ok'};
   ents.push(hub);for(let y=HY-1;y<=HY+1;y++)for(let x=HX-1;x<=HX+1;x++)grid[idx(x,y)]=hub;
 }
+// ================== PLANETS ==================
+// Each planet keeps its own copy of everything below; the game swaps a planet in, simulates it, and swaps it out.
+const PTYPES={
+  home:{name:'Home',sunMax:1,windMul:1,phase:0,liqName:'Water',patches:105,
+    start:[[1,11],[2,12],[3,10],[4,13]],
+    near:[[1,26,6],[2,27,6],[3,25,4.5],[4,28,4.5],[5,33,4.8],[6,40,2.8],[6,46,2.6],[7,58,4.2],[1,40,7],[2,42,7]],
+    pick:(R,dd)=>{let t=1+Math.floor(R()*4),r=3+R()*4+dd*0.035;const q=R();if(dd>40&&q<0.2)t=5;else if(dd>40&&q<0.34){t=6;r=2+R()*1.6}else if(dd>55&&q<0.42)t=7;return[t,r]}},
+  cinder:{name:'Cinder',col:'#ff7a2a',sunMax:1.25,windMul:0,phase:.3,liqName:'Lava',patches:95,clearR:20,rivers:3,liquid:{scale:22,thr:.66},
+    blurb:'A volcanic world. Lava fields, tungsten ore and geothermal vents. No copper or oil, and the air is too still for wind turbines.',
+    pal:{g0:'#2a201c',g1:'#382821',liq:['#7a200c','#e2561a'],liqHi:'rgba(255,210,120,.45)',shore:'rgba(30,14,10,.75)',rock:'#2b2523',mini:'#3a2a22',miniLiq:'#c24a18',plants:false},
+    kit:{iron_plate:300,copper_plate:300,brick:100,coal:60,gear:60,circuit:60,steel:60,processor:6,concrete:30,lds:6,rocket_fuel:30},
+    start:[[1,11],[3,10],[4,13],[8,12]],
+    near:[[12,9,1.4],[8,26,6],[1,27,6],[3,25,5],[12,22,1.6],[12,30,1.6],[5,34,4.5],[7,50,4]],
+    pick:(R,dd)=>{const q=R();let r=3+R()*4+dd*0.03;if(q<0.12)return[12,1.3+R()*.8];if(q<0.38)return[8,r];if(q<0.55)return[1,r];if(q<0.68)return[3,r];if(q<0.8)return[4,r];if(q<0.92&&dd>36)return[5,r];if(dd>50)return[7,r];return[1,r]}},
+  rime:{name:'Rime',col:'#9fd8ff',sunMax:.4,windMul:1.6,phase:.55,liqName:'Crevasse',patches:95,clearR:22,rivers:2,liquid:{scale:24,thr:.69},
+    blurb:'A frozen world. Helium ice and cryo crystals under a weak sun, with strong steady winds. No coal or oil, so generators need shipped-in fuel.',
+    pal:{g0:'#3a4550',g1:'#4c5966',liq:['#08111a','#132436'],liqHi:'rgba(150,200,255,.18)',shore:'rgba(225,238,255,.55)',rock:'#5d6a75',mini:'#46535f',miniLiq:'#0e1a26',plants:false},
+    kit:{iron_plate:300,copper_plate:200,brick:100,coal:200,gear:80,circuit:60,steel:60,processor:6,concrete:30,lds:6,rocket_fuel:30},
+    start:[[1,11],[2,12],[4,13],[9,10]],
+    near:[[10,24,5],[9,27,6],[5,30,4.5],[1,36,6],[2,38,6],[10,44,5]],
+    pick:(R,dd)=>{const q=R();let r=3+R()*4+dd*0.03;if(q<0.25)return[9,r];if(q<0.42)return[10,r];if(q<0.6)return[1,r];if(q<0.76)return[2,r];if(q<0.88)return[4,r];return[5,r]}},
+  verdant:{name:'Verdant',col:'#7ad05a',sunMax:.9,windMul:.7,phase:.8,liqName:'Swamp',patches:100,clearR:22,rivers:2,growth:true,liquid:{scale:26,thr:.72},
+    blurb:'A jungle world. Thick growth covers the ground and grows back; clearing it gives biomass. Bloom patches, oil, coal and plenty of ore.',
+    pal:{g0:'#1d281a',g1:'#283822',liq:['#1a3024','#294832'],liqHi:'rgba(160,230,170,.14)',shore:'rgba(60,90,50,.6)',rock:'#3a3f33',mini:'#24331f',miniLiq:'#25402e'},
+    kit:{iron_plate:300,copper_plate:200,brick:100,coal:80,gear:80,circuit:60,steel:60,processor:6,concrete:30,lds:6,rocket_fuel:30},
+    start:[[1,11],[2,12],[3,10],[11,13]],
+    near:[[6,22,2.6],[6,30,2.6],[4,26,4.5],[11,28,5],[5,34,4.5],[1,36,6],[2,38,6]],
+    pick:(R,dd)=>{const q=R();let r=3+R()*4+dd*0.03;if(q<0.22)return[11,r];if(q<0.32)return[6,2+R()*1.6];if(q<0.5)return[1,r];if(q<0.66)return[2,r];if(q<0.78)return[3,r];if(q<0.9)return[4,r];return[5,r]}}};
+const PORDER=['home','cinder','rime','verdant'];
+// The Ark: four phases paid from Home storage, then a final launch
+const ARK=[{name:'Hull',need:{hull_segment:60}},{name:'Reactor',need:{reactor_core:40}},{name:'Habitat',need:{habitat_module:60}},{name:'Navigation',need:{nav_core:40}}];
+let ark={phase:0,paid:{},on:false,launched:false},droneTrips=0;
+const COLONY_TECH={launch:'cinder',colony_rime:'rime',colony_verdant:'verdant'};
+let planets=[],curP=0,simP=0,loadedP=0;
+function stashP(p){p.seed=seed;p.ore=ore;p.terr=terr;p.rich=rich;p.ents=ents;p.grid=grid;p.inv=inv;p.delivered=delivered;p.made=made;p.hub=hub;p.power=power;p.buckets=buckets;p.curMade=curMade;p.curDel=curDel;p.bucketT=bucketT;p.curUsed=curUsed;p.curMS=curMS;p.curUS=curUS;p.minBuckets=minBuckets;p.secN=secN;p.particles=particles;p.wind=wind;p.sun=sun;p.nets=nets;p.powerDirty=powerDirty;p.netOf=netOf;p.wires=wires;p.legacyPower=legacyPower;p.flashes=flashes;p.chunkCache=chunkCache;p.undoStack=undoStack;p.ghosts=ghosts;p.ptype=ptype;p.pgen=pgen;p.cleared=cleared;p.drones=drones}
+function loadP(p){loadedP=p.idx;seed=p.seed;ore=p.ore;terr=p.terr;rich=p.rich;ents=p.ents;grid=p.grid;inv=p.inv;delivered=p.delivered;made=p.made;hub=p.hub;power=p.power;buckets=p.buckets;curMade=p.curMade;curDel=p.curDel;bucketT=p.bucketT;curUsed=p.curUsed;curMS=p.curMS;curUS=p.curUS;minBuckets=p.minBuckets;secN=p.secN;particles=p.particles;wind=p.wind;sun=p.sun;nets=p.nets;powerDirty=p.powerDirty;netOf=p.netOf;wires=p.wires;legacyPower=p.legacyPower;flashes=p.flashes;chunkCache=p.chunkCache;undoStack=p.undoStack;ghosts=p.ghosts;ptype=p.ptype;pgen=p.pgen;cleared=p.cleared;drones=p.drones}
+const freshPower=()=>({demand:0,supply:0,sat:1,src:{},stored:0,storeCap:0});
+function makePlanet(type,sd,gen){
+  const p={type,name:PTYPES[type].name,idx:planets.length};
+  seed=sd;ptype=type;pgen=gen;legacyPower=false;powerDirty=true;ents=[];grid=new Array(W*H).fill(null);inv={};delivered={};made={};
+  power=freshPower();buckets=[];curMade={};curDel={};bucketT=0;curUsed={};curMS={};curUS={};minBuckets=[];secN=0;particles=[];wind=.6;sun=1;
+  nets=[];netOf=null;wires=[];flashes=[];chunkCache=new Map();undoStack=[];ghosts=new Map();cleared=new Map();drones=[];
+  genWorld();makeHub();p.cam={x:HX*T+T/2,y:HY*T+T/2,z:1};stashP(p);return p;
+}
+// Run fn with planet i loaded, then put the current planet back
+function withPlanet(i,fn){
+  if(i===loadedP||!planets[i])return fn();
+  const prev=loadedP;stashP(planets[prev]);loadP(planets[i]);
+  try{return fn()}finally{stashP(planets[i]);loadP(planets[prev])}
+}
+const invOf=i=>i===loadedP?inv:planets[i].inv;
+function totalInv(k){let n=0;for(let i=0;i<planets.length;i++)n+=invOf(i)[k]||0;return n}
+const pIdx=type=>planets.findIndex(p=>p.type===type);
+// Create a colony planet with its starter kit, without disturbing the planet that's loaded
+function colonize(type){
+  if(pIdx(type)>=0)return planets[pIdx(type)];
+  const keep=loadedP;stashP(planets[keep]);
+  const p=makePlanet(type,(Math.random()*1e9)|0,2);p.inv={...PTYPES[type].kit};planets.push(p);
+  loadP(planets[keep]);return p;
+}
+function switchPlanet(i){
+  if(i===curP||!planets[i])return;
+  planets[curP].cam={x:cam.x,y:cam.y,z:zoom};
+  closeInspector();clearModes();drag=null;mining=null;hideTip&&hideTip();
+  stashP(planets[curP]);curP=i;simP=i;loadP(planets[i]);
+  const c=planets[i].cam||{x:HX*T+T/2,y:HY*T+T/2,z:1};cam.x=c.x;cam.y=c.y;zoom=c.z||1;
+  if(!statsEl.hidden)statsEl.hidden=true;if(!modalEl.hidden&&modalEl.dataset.kind!=='trade')closeModal();
+  refreshHotbar(true);renderObjectives();updateUI();drawMini();updateModebar();renderPBar();
+  if(!invEl.hidden)renderInv();
+  toast(`Now on ${planets[i].name}. Storage here is separate.`);blip(520,0.08,'triangle',0.04);
+}
 function newGame(){
-  seed=(Math.random()*1e9)|0;legacyPower=false;powerDirty=true;
-  ents=[];grid=new Array(W*H).fill(null);
-  inv={iron_plate:200,copper_plate:100,brick:50,coal:30};
-  techs=new Set();techLv={};active=null;rq=[];paid={};delivered={};made={};playTime=0;won=false;launch=null;genAuto=false;
-  buckets=[];curMade={};curDel={};
-  genWorld();makeHub();
+  techs=new Set();techLv={};active=null;rq=[];paid={};playTime=0;won=false;launch=null;genAuto=false;upSent=0;flights=[];tradeLog=[];shipped=0;ark={phase:0,paid:{},on:false,launched:false};droneTrips=0;
+  planets=[];planets.push(makePlanet('home',(Math.random()*1e9)|0,2));curP=0;simP=0;loadP(planets[0]);
+  inv={iron_plate:200,copper_plate:100,brick:50,coal:30};stashP(planets[0]);
   cam.x=HX*T+T/2;cam.y=HY*T+T/2;zoom=1;
 }
 function calcMods(e){const s={spd:0,pow:0,prod:0};(e.mods||[]).forEach(m=>{const d=MODS[m];s.spd+=d.spd;s.pow+=d.pow;s.prod+=d.prod});e.ms=s}
@@ -589,11 +768,17 @@ const ACC={
   furnace:smeltAccept,furnace2:smeltAccept,
   assembler:crafterAccept,assembler2:crafterAccept,assembler3:crafterAccept,refinery:crafterAccept,
   splitter(e,id){if(e.buf.length>=2)return false;e.buf.push(id);return true},
+  psplit(e,id){if(e.buf.length>=2)return false;e.buf.push(id);return true},
   filter(e,id){if(e.buf.length>=1)return false;e.buf.push(id);return true},
   chest(e,id){if(e.buf.length>=400)return false;e.buf.push(id);return true},
   generator:fuelAccept,reactor:fuelAccept,
   tunnel(e,id,dir){if(e.role!=='in'||!e.pair||dir===(e.dir+2)%4||e.tq.length>=40)return false;
     const tt=(Math.abs(e.pair.x-e.x)+Math.abs(e.pair.y-e.y))/8,last=e.tq[e.tq.length-1];if(last&&last.t>tt-0.03)return false;e.tq.push({id,t:tt});return true},
+  uplink(e,id){if(e.buf.length>=8)return false;e.buf.push(id);return true},
+  silo(e,id){const x=siloX(e);if(id==='rocket_fuel'&&x.fuel<SILO_TANK){x.fuel++;return true}
+    if(x.flt.length&&!x.flt.includes(id))return false;if(x.n>=SILO_CAP)return false;x.cargo[id]=(x.cargo[id]||0)+1;x.n++;return true},
+  fusion:fuelAccept,
+  dport(e,id){const x=dportX(e);if(x.role!=='send'||e.buf.length>=40)return false;e.buf.push(id);return true},
   hub(e,id){addInv(id);delivered[id]=(delivered[id]||0)+1;curDel[id]=(curDel[id]||0)+1;e.pulse=1;e.lastItem=id;return true},
 };
 function accept(t,id,dir,p){const f=ACC[t.type];return f?f(t,id,dir,p||0):false}
@@ -623,7 +808,7 @@ function updMiner(e,dt,pw){
   if(e.out.length>=3){e.working=false;e.st='block';return}
   e.working=true;
   if(pw<=0){e.st=pw<0?'nopole':'nopower';return}
-  e.st='ok';e.prog+=dt*b.rate*minerMult()*(1+e.ms.spd)*pw;e.anim+=dt*(4+b.rate*8)*pw;
+  e.st='ok';e.prog+=dt*b.rate*minerMult()*(1+e.ms.spd)*pw*(rich&&rich[idx(e.x,e.y)]?2:1);e.anim+=dt*(4+b.rate*8)*pw;
   if(e.prog>=1){e.prog-=1;const id=ORE_ITEM[o];e.out.push(id);addMade(id,1,e.type);bonus(e,id,1);if(Math.random()<.4)spark(e.x*T+T/2,e.y*T+T/2,ORE_COL[o].c,3)}
 }
 function updFurnace(e,dt,pw){
@@ -653,6 +838,32 @@ function updCrafter(e,dt,pw){
       if(e.prog>=1){e.crafting=false;e.prog=0;for(let i=0;i<r.out;i++)e.out.push(e.recipe);addMade(e.recipe,r.out,e.type);bonus(e,e.recipe,r.out);spark(e.x*T+T/2,e.y*T+T/2,ITEMS[e.recipe].color,5)}}
   }else e.st=e.out.length>=cap?'block':'idle';
 }
+// Priority exit first (front, left or right of the arrow), then the other two in order
+function prioOrder(e){const f=e.dir,l=(e.dir+3)%4,r=(e.dir+1)%4,p=e.prio||'front';return p==='left'?[l,f,r]:p==='right'?[r,f,l]:[f,l,r]}
+// Build planned buildings that storage can now pay for, oldest first
+function buildGhosts(){
+  if(!ghosts.size)return;let n=0;
+  for(const[k,g]of ghosts){if(n>=6)break;
+    if(grid[k]){ghosts.delete(k);continue}
+    if(!unlockedB(g.type)||canPlace(g.type,g.x,g.y)!=='ok'||!canAfford(BUILD[g.type].cost))continue;
+    ghosts.delete(k);undoing=true;try{place(g.type,g.x,g.y,g.dir,true,{...g.m,noGhost:true})}finally{undoing=false}n++}
+}
+// Jungle growth: clearing gives biomass; cleared ground grows back after a few minutes unless a building sits on or beside it
+const REGROW_T=240;
+function clearGrowth(x,y){const i=idx(x,y);if(terr[i]!==3)return;terr[i]=0;cleared.set(i,playTime);addInv('biomass');addMade('biomass',1,'clear');dirtyChunk(x,y)}
+function dirtyChunk(x,y){chunkCache.delete(Math.floor(x/CH)+','+Math.floor(y/CH))}
+function regrow(){
+  if(!cleared.size)return;
+  for(const[i,t]of cleared){if(playTime-t<REGROW_T)continue;const x=i%W,y=(i/W)|0;
+    if(grid[i]||ghosts.has(i)){cleared.set(i,playTime);continue}
+    let busy=false;for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const g=at(x+dx,y+dy);if(g){busy=true;break}}
+    if(busy){cleared.set(i,playTime-REGROW_T*0.5);continue}
+    terr[i]=3;cleared.delete(i);dirtyChunk(x,y)}
+}
+function updPSplit(e){
+  for(let n=0;n<2&&e.buf.length;n++){let sent=false;for(const d of prioOrder(e)){const t=at(e.x+DX[d],e.y+DY[d]);if(t&&t!==e&&accept(t,e.buf[0],d,0)){e.buf.shift();sent=true;break}}if(!sent)break}
+  e.st=e.buf.length>=2?'block':e.buf.length?'ok':'idle';
+}
 function updSplit(e){
   for(let n=0;n<2&&e.buf.length;n++){
     let sent=false;
@@ -680,6 +891,82 @@ function updTunnel(e,dt){
   let n=0;const x=e.pair;
   while(e.tq.length&&e.tq[0].t<=0&&n<3){const t=at(x.x+DX[x.dir],x.y+DY[x.dir]);if(t&&t!==x&&accept(t,e.tq[0].id,x.dir,0)){e.tq.shift();n++}else break}
   e.st=e.tq.length&&e.tq[0].t<=0?'block':e.tq.length?'ok':'idle';x.st=e.st;
+}
+const UPLINK_RATE=12; // items per second, same as one Fast Conveyor
+let upSent=0;
+// ---- Cargo Silo: fills with cargo, charges, launches; the rocket lands in the destination planet's storage ----
+const SILO_CAP=400,SILO_TANK=20,SILO_FUEL=5,SILO_CHARGE=8,SILO_ANIM=3,FLIGHT_T=45;
+function siloX(e){return e.ext||(e.ext={dest:null,flt:[],cargo:{},n:0,fuel:0,charge:0,anim:0,go:false,launches:0,sending:null})}
+function siloDefaultDest(){if(planets.length<2)return null;return loadedP===0?planets.length-1:0}
+function siloFuelHave(x){return x.fuel+(inv.rocket_fuel||0)}
+function updSilo(e,dt){
+  const x=siloX(e);
+  if(x.anim>0){x.anim-=dt;e.working=true;e.st='ok';if(Math.random()<dt*14)smoke(e.x*T+T/2,e.y*T+T/2+6,1.2);if(x.anim<=0)siloSend(e);return}
+  if(x.dest==null||!planets[x.dest]||x.dest===loadedP){e.st='norecipe';e.working=false;x.charge=0;return}
+  if(!(x.n>=SILO_CAP||(x.go&&x.n>0))){e.st='idle';e.working=false;x.charge=0;return}
+  const pw=pwOf(e);if(pw<0){e.st='nopole';e.working=false;return}
+  if(siloFuelHave(x)<SILO_FUEL){e.st='idle';e.working=false;x.charge=0;return}
+  e.working=true;if(pw<=0){e.st='nopower';return}
+  e.st='ok';x.charge+=dt*pw;
+  if(x.charge>=SILO_CHARGE){x.charge=0;let need=SILO_FUEL;const a=Math.min(need,x.fuel);x.fuel-=a;need-=a;if(need>0){inv.rocket_fuel-=need}addUsed('rocket_fuel',SILO_FUEL,'silo');
+    x.sending=x.cargo;x.cargo={};x.n=0;x.go=false;x.anim=SILO_ANIM;blip(140,0.4,'sawtooth',0.03)}
+}
+function siloSend(e){
+  const x=siloX(e),items=x.sending||{};x.sending=null;x.anim=0;x.launches++;
+  for(const k in items)addUsed(k,items[k],'export');
+  flights.push({from:loadedP,to:x.dest,items,t:0,dur:FLIGHT_T,sx:e.x,sy:e.y});shipped++;
+}
+function stepFlights(dt){
+  for(let i=flights.length-1;i>=0;i--){const f=flights[i];f.t+=dt;if(f.t<f.dur)continue;flights.splice(i,1);
+    if(!planets[f.to])continue;let n=0;
+    withPlanet(f.to,()=>{for(const k in f.items){addInv(k,f.items[k]);addMade(k,f.items[k],'import');n+=f.items[k]}if(hub)hub.pulse=1});
+    tradeLog.push({t:playTime,from:f.from,to:f.to,items:f.items,n});if(tradeLog.length>200)tradeLog.shift();
+    if(f.to===curP||f.from===curP)toast(`Cargo from ${planets[f.from]?planets[f.from].name:'orbit'} landed on ${planets[f.to].name}: ${n} items`);
+  }
+}
+function siloLoad(e){
+  const x=siloX(e);if(!x.flt.length){toast('Pick which items to ship first. Loading from storage only takes those.');return}
+  let moved=0;for(const k of x.flt){const room=SILO_CAP-x.n;if(room<=0)break;const take=Math.min(room,inv[k]||0);if(take>0){inv[k]-=take;x.cargo[k]=(x.cargo[k]||0)+take;x.n+=take;moved+=take}}
+  toast(moved?`Loaded ${moved} items from storage`:'Nothing of those items in storage here.');if(moved)blip(600,0.06,'triangle');
+}
+// ---- Drone Ports: senders batch items and fly them to receivers on the same channel ----
+const DRONE_LOAD=20,DRONE_N=4,DRONE_SPD=12,DPORT_BUF=100;
+function dportX(e){return e.ext||(e.ext={role:'send',ch:1,out:0,inc:0,wait:0,trips:0})}
+function updDport(e,dt){
+  const x=dportX(e),pw=pwOf(e);
+  if(x.role==='recv'){updChest(e,dt);e.working=false;e.st=pw<0?'nopole':e.buf.length?'ok':'idle';return}
+  e.working=e.buf.length>0||x.out>0;
+  if(pw<0){e.st='nopole';return}if(pw<=0){e.st=e.working?'nopower':'idle';return}
+  if(!e.buf.length){e.st=x.out?'ok':'idle';x.wait=0;return}
+  x.wait+=dt;
+  if(x.out>=DRONE_N||(e.buf.length<DRONE_LOAD&&x.wait<2)){e.st='ok';return}
+  let best=null,bd=1e9;for(const r of ents){if(r.type!=='dport'||r===e)continue;const rx=dportX(r);if(rx.role!=='recv'||rx.ch!==x.ch||r.buf.length+rx.inc>=DPORT_BUF)continue;
+    const d=Math.hypot(r.x-e.x,r.y-e.y)+rx.inc*0.2;if(d<bd){bd=d;best=r}}
+  if(!best){e.st=e.buf.length>=40?'block':'ok';return}
+  const rx=dportX(best),n=Math.min(DRONE_LOAD,e.buf.length,DPORT_BUF-best.buf.length-rx.inc);if(n<=0){e.st='block';return}
+  const items=e.buf.splice(0,n);rx.inc+=n;x.out++;x.wait=0;const dist=Math.hypot(best.x-e.x,best.y-e.y);
+  drones.push({fx:e.x,fy:e.y,tx:best.x,ty:best.y,items,t:0,dur:0.6+dist/DRONE_SPD,back:false});e.st='ok';
+}
+function stepDrones(dt){
+  for(let i=drones.length-1;i>=0;i--){const d=drones[i];d.t+=dt;if(d.t<d.dur)continue;
+    if(!d.back){const r=at(d.tx,d.ty);if(r&&r.type==='dport'){const rx=dportX(r);rx.inc=Math.max(0,rx.inc-d.items.length);for(const it of d.items)r.buf.push(it);rx.trips++}else d.items.forEach(it=>addInv(it));
+      droneTrips++;d.items=[];d.back=true;d.t=0;const s=at(d.fx,d.fy);if(!s||s.type!=='dport'){drones.splice(i,1)}continue}
+    const s=at(d.fx,d.fy);if(s&&s.type==='dport')dportX(s).out=Math.max(0,dportX(s).out-1);drones.splice(i,1)}
+}
+// ---- The Ark: draws its parts from Home storage while building is switched on ----
+function arkStep(dt){
+  if(!ark.on||ark.phase>=ARK.length||!has('ark'))return;const need=ARK[ark.phase].need;
+  withPlanet(0,()=>{let budget=Math.max(1,Math.floor(dt*20));for(const k in need){const want=need[k]-(ark.paid[k]||0);if(want<=0)continue;const take=Math.min(want,inv[k]||0,budget);if(take>0){inv[k]-=take;addUsed(k,take,'ark');ark.paid[k]=(ark.paid[k]||0)+take;budget-=take}}});
+  if(Object.keys(need).every(k=>(ark.paid[k]||0)>=need[k])){toast(`Ark phase complete: ${ARK[ark.phase].name}`,true);chord();ark.phase++;ark.paid={};if(ark.phase>=ARK.length){ark.on=false;toast('The Ark is ready. Open the Ark screen (K) to launch it.',true)}renderArk()}
+}
+function launchArk(){if(ark.phase<ARK.length||ark.launched)return;ark.launched=true;won=true;closeAll();if(curP!==0)switchPlanet(0);launch={t:0,shown:false,ark:true}}
+function updUplink(e,dt){
+  const pw=pwOf(e);e.pulse=Math.max(0,(e.pulse||0)-dt*3);
+  e.working=e.buf.length>0;
+  if(!e.buf.length){e.acc=0;e.st=pw<0?'nopole':'idle';return}
+  if(pw<=0){e.st=pw<0?'nopole':'nopower';return}
+  e.st='ok';e.anim+=dt*2*pw;e.acc=Math.min((e.acc||0)+dt*UPLINK_RATE*pw,3);
+  while(e.acc>=1&&e.buf.length){const id=e.buf.shift();addInv(id);delivered[id]=(delivered[id]||0)+1;curDel[id]=(curDel[id]||0)+1;e.sent=(e.sent||0)+1;upSent++;e.acc-=1;e.pulse=1}
 }
 function updDepot(e,dt){
   if(!e.filter){e.st='norecipe';return}
@@ -721,34 +1008,37 @@ function rebuildPower(){
   const mk=()=>({nodes:[],consumers:[],demand:0,supply:0,sat:1,src:{},stored:0,storeCap:0,got:0});
   if(legacyPower){nets.push(mk());nodes.forEach(e=>{e.net=0;nets[0].nodes.push(e)});netOf.fill(0)}
   else{const ids={};nodes.forEach((e,i)=>{const r=find(i);if(ids[r]==null){ids[r]=nets.length;nets.push(mk())}e.net=ids[r];nets[e.net].nodes.push(e)});
-    for(const n of nodes){const R=nodeInfo(n).radius+(n.type==='hub'?1:0);
+    // where coverage overlaps, a grid that has a power source claims the tile first
+    const hasGen=nets.map(q=>q.nodes.some(n=>n.type!=='hub'&&BUILD[n.type]&&BUILD[n.type].cat==='power'));
+    const order=[...nodes].sort((a,b)=>(hasGen[b.net]?1:0)-(hasGen[a.net]?1:0));
+    for(const n of order){const R=nodeInfo(n).radius+(n.type==='hub'?1:0);
       for(let y=n.y-R;y<=n.y+R;y++)for(let x=n.x-R;x<=n.x+R;x++)if(inb(x,y)&&netOf[idx(x,y)]<0)netOf[idx(x,y)]=n.net}}
   for(const e of ents){const b=BUILD[e.type];if(!b||!b.power)continue;const k=netOf[idx(e.x,e.y)];e.net=k>=0?k:null;if(k>=0)nets[k].consumers.push(e)}
 }
 const covered=(x,y)=>legacyPower||(netOf&&inb(x,y)&&netOf[idx(x,y)]>=0);
 const pwOf=e=>e.net!=null&&nets[e.net]?nets[e.net].sat:-1;
 function netStep(n,dt){
-  let demand=0;const burners=[],accs=[];let nWind=0,nSolar=0;const pm=powMult();
+  let demand=0;const burners=[],accs=[];let nWind=0,nSolar=0,nGeo=0;const pm=powMult();
   for(const e of n.consumers)if(e.working)demand+=BUILD[e.type].power*(1+(e.ms?e.ms.pow:0))*pm;
-  for(const e of n.nodes){if(e.type==='hub')continue;const b=BUILD[e.type];if(b.fuels)burners.push(e);else if(e.type==='wind')nWind++;else if(e.type==='solar')nSolar++;else if(e.type==='accumulator')accs.push(e)}
-  const windP=nWind*BUILD.wind.cap*wind,solarP=nSolar*BUILD.solar.cap*sun,fixed=windP+solarP;
+  for(const e of n.nodes){if(e.type==='hub')continue;const b=BUILD[e.type];if(b.fuels)burners.push(e);else if(e.type==='wind')nWind++;else if(e.type==='solar')nSolar++;else if(e.type==='geo')nGeo++;else if(e.type==='accumulator')accs.push(e)}
+  const windP=nWind*BUILD.wind.cap*wind,solarP=nSolar*BUILD.solar.cap*sun,geoP=nGeo*BUILD.geo.cap,fixed=windP+solarP+geoP;
   let burnCap=0;for(const g of burners){g._av=g.energy>0||g.fq.length>0;if(g._av)burnCap+=BUILD[g.type].cap}
   let accCap=0,stored=0,storeCap=0;for(const a of accs){accCap+=Math.min(BUILD.accumulator.rate,a.charge/Math.max(dt,1e-3));stored+=a.charge;storeCap+=BUILD.accumulator.store}
-  const src={wind:0,solar:0,coal:0,nuclear:0,battery:0,charging:0};
+  const src={wind:0,solar:0,coal:0,nuclear:0,battery:0,charging:0,geo:0,fusion:0};
   let fromBurn=0,fromAcc=0;
   if(fixed>=demand){
-    src.wind=demand>0?windP*Math.min(1,demand/Math.max(fixed,1e-6)):0;src.solar=demand>0?solarP*Math.min(1,demand/Math.max(fixed,1e-6)):0;
+    src.wind=demand>0?windP*Math.min(1,demand/Math.max(fixed,1e-6)):0;src.solar=demand>0?solarP*Math.min(1,demand/Math.max(fixed,1e-6)):0;src.geo=demand>0?geoP*Math.min(1,demand/Math.max(fixed,1e-6)):0;
     let surplus=fixed-demand;for(const a of accs){const add=Math.min(surplus,BUILD.accumulator.rate,(BUILD.accumulator.store-a.charge)/Math.max(dt,1e-3));if(add>0){a.charge+=add*dt;surplus-=add;src.charging+=add}}
   }else{
-    src.wind=windP;src.solar=solarP;
+    src.wind=windP;src.solar=solarP;src.geo=geoP;
     const deficit=demand-fixed;fromBurn=Math.min(deficit,burnCap);fromAcc=Math.min(deficit-fromBurn,accCap);
     if(fromAcc>0&&accCap>0)for(const a of accs){const take=Math.min(BUILD.accumulator.rate,a.charge/Math.max(dt,1e-3))/accCap*fromAcc;a.charge=Math.max(0,a.charge-take*dt)}
     src.battery=fromAcc;
   }
   for(const g of burners){const b=BUILD[g.type];
     if(g._av&&fromBurn>0){const share=b.cap/burnCap*fromBurn;g.load=share/b.cap;g.energy-=share*dt;while(g.energy<=0&&g.fq.length){const f=g.fq.shift();g.energy+=FUEL[f];addUsed(f,1,g.type)}if(g.energy<0)g.energy=0;
-      if(g.type==='reactor')src.nuclear+=share;else src.coal+=share;
-      g.anim+=dt*(2+g.load*16);g.st='ok';if(g.type==='generator'&&Math.random()<dt*(0.5+g.load*3))smoke(g.x*T+T/2,g.y*T+8,0.9);if(g.type==='reactor'&&Math.random()<dt*g.load*2)smoke(g.x*T+T/2,g.y*T+6,1.4)}
+      if(g.type==='reactor')src.nuclear+=share;else if(g.type==='fusion')src.fusion+=share;else src.coal+=share;
+      g.anim+=dt*(2+g.load*16);g.st='ok';if(g.type==='generator'&&Math.random()<dt*(0.5+g.load*3))smoke(g.x*T+T/2,g.y*T+8,0.9);if((g.type==='reactor'||g.type==='fusion')&&Math.random()<dt*g.load*2)smoke(g.x*T+T/2,g.y*T+6,1.4)}
     else{g.load=0;g.st=g._av?'idle':'nopower';if(g._av)g.anim+=dt*0.6}}
   for(const a of accs)a.st=a.charge>1?'ok':'idle';
   n.demand=demand;n.supply=fixed+burnCap+accCap;n.got=fixed+fromBurn+fromAcc;n.sat=demand>0?Math.min(1,n.got/demand):1;
@@ -758,23 +1048,23 @@ function netStep(n,dt){
 function powerStep(dt){
   if(powerDirty)rebuildPower();
   for(const n of nets)netStep(n,dt);
-  for(const e of ents){if(e.type==='wind'){e.anim+=dt*(0.6+wind*5);e.st='ok'}else if(e.type==='solar')e.st=sun>0.05?'ok':'idle';
+  for(const e of ents){if(e.type==='wind'){e.anim+=dt*(0.6+wind*5);e.st='ok'}else if(e.type==='solar')e.st=sun>0.05?'ok':'idle';else if(e.type==='geo')e.st='ok';
     else if(BUILD[e.type]&&BUILD[e.type].cat==='pole')e.st=nets[e.net]&&nets[e.net].supply>0?'ok':'idle'}
-  const src={wind:0,solar:0,coal:0,nuclear:0,battery:0,charging:0};let demand=0,supply=0,stored=0,storeCap=0,sat=1,short=0;
+  const src={wind:0,solar:0,coal:0,nuclear:0,battery:0,charging:0,geo:0,fusion:0};let demand=0,supply=0,stored=0,storeCap=0,sat=1,short=0;
   for(const n of nets){demand+=n.demand;supply+=n.supply;stored+=n.stored;storeCap+=n.storeCap;for(const k in src)src[k]+=n.src[k]||0;if(n.demand>0&&n.sat<0.98){short++;sat=Math.min(sat,n.sat)}}
   const loose=ents.filter(e=>BUILD[e.type]&&BUILD[e.type].power&&e.net==null).length;
   power={demand,supply,sat,src,stored,storeCap,short,grids:nets.filter(n=>n.consumers.length).length,loose};
 }
 function researchStep(dt){
   if(!active)return;const tc=TECH_BY[active],c=costOf(tc);rBudget=Math.min(rBudget+dt*30,30);
-  for(const k in c){const need=c[k]-(paid[k]||0);if(need>0){const take=Math.min(need,inv[k]||0,Math.floor(rBudget));if(take>0){inv[k]-=take;addUsed(k,take,'research');paid[k]=(paid[k]||0)+take;rBudget-=take}}}
+  for(let pi=0;pi<planets.length;pi++)withPlanet(pi,()=>{for(const k in c){const need=c[k]-(paid[k]||0);if(need>0){const take=Math.min(need,inv[k]||0,Math.floor(rBudget));if(take>0){inv[k]-=take;addUsed(k,take,'research');paid[k]=(paid[k]||0)+take;rBudget-=take}}}});
   if(Object.keys(c).every(k=>(paid[k]||0)>=c[k]))completeTech(active);
 }
 function completeTech(id){
   const tc=TECH_BY[id];active=null;paid={};
   if(tc.rep){techLv[id]=lv(id)+1;toast(`${tc.name} level ${lv(id)}`,true)}else{techs.add(id);toast(`Researched: ${tc.name}`,true)}
   chord();refreshHotbar(true);
-  if(id==='launch'){won=true;launch={t:0,shown:false};closeAll()}
+  if(COLONY_TECH[id]){if(launch&&launch.colony&&!launch.shown){colonize(launch.colony);renderPBar()}launch={t:0,shown:false,colony:COLONY_TECH[id]};closeAll()}
   nextQueued();
 }
 function startResearch(id,quiet){
@@ -796,11 +1086,12 @@ function queueTech(id){
   nextQueued();
 }
 // What a tech still needs that isn't in the inventory (counts what's already been paid in).
-function techMissing(t){const c=costOf(t),out={};for(const k in c){const have=(inv[k]||0)+(active===t.id?(paid[k]||0):0);if(have<c[k])out[k]=c[k]-have}return out}
+function techMissing(t){const c=costOf(t),out={};for(const k in c){const have=totalInv(k)+(active===t.id?(paid[k]||0):0);if(have<c[k])out[k]=c[k]-have}return out}
 function howToGet(k){
   if(HANDCRAFT.includes(k)&&unlockedR(k))return`Hand craft it (I), or set an Assembler to ${N(k)} and belt it into the Hub.`;
   if(RECIPES[k]&&unlockedR(k))return`Set an ${RECIPES[k].cat==='refine'?'Refinery':'Assembler'} to ${N(k)} and belt it into the Hub.`;
   for(const o in SMELT)if(SMELT[o].out===k&&(!SMELT[o].tech||has(SMELT[o].tech)))return`Smelt ${N(o)} and belt it into the Hub.`;
+  const OP={tungsten_ore:'Cinder',helium_ice:'Rime',cryo_crystal:'Rime',biomass:'Verdant'};if(OP[k])return`Only found on ${OP[k]}. Mine it there${k==='biomass'?' (bloom patches, or clear jungle growth)':''}, or ship it in with a Cargo Silo.`;
   if(ORE_ITEM.includes(k))return`Mine it and belt it into the Hub.`;
   return'Belt it into the Hub.';
 }
@@ -837,10 +1128,13 @@ function undo(){
 // Plain-language reason for a building's state, used by the cursor tooltip and the inspector.
 function whyText(e){
   const b=BUILD[e.type];if(!b)return'';const st=e.st;
+  if(e.type==='dport'&&e.ext&&e.ext.role==='send'&&st==='block')return`No receiver on channel ${e.ext.ch} has room. Place a Drone Port set to Receive on the same channel.`;
+  if(e.type==='silo'){const x=siloX(e);if(st==='norecipe')return planets.length>1?'Click it and pick a destination planet.':'Colonize another planet first.';if(st==='idle'&&(x.n>=SILO_CAP||x.go)&&siloFuelHave(x)<SILO_FUEL)return`Needs ${SILO_FUEL} Rocket Fuel: belt some in or keep it in this planet's storage.`;if(st==='idle')return`Filling up: ${x.n} of ${SILO_CAP}. Belt items in or use Load from storage.`}
   if(st==='nopole')return'Not connected to power. Place a Power Pole (key 7) so this machine sits inside its blue area, and chain poles back to a generator.';
   if(st==='nopower')return b.fuels?`Out of fuel. Press F while hovering, or belt ${b.fuels.map(N).join(' or ')} in.`:(nets[e.net]&&nets[e.net].supply<=0?'Connected, but this grid has no power source. Link it to a generator with poles, or add one here.':'This grid is out of power. Add fuel or more generators.');
   if(st==='block'){if(e.type==='tunnel')return'The exit tunnel is blocked. Make sure a belt leads away from it.';if(e.type==='depot')return'Nothing in front can take the item. Point the orange arrow at a belt.';return'Output is full. Point the orange arrow at a belt or machine that can take it.'}
   if(st==='norecipe'){if(b.cat==='crafter')return'Click it and pick a recipe.';if(e.type==='filter'||e.type==='depot')return'Click it and choose an item.';if(e.type==='tunnel')return`Place a second tunnel facing the same way, up to ${TUN_RANGE} tiles ahead.`;return''}
+  if(st==='idle'&&e.type==='uplink')return'Waiting for items. Belt anything in from any side and it goes straight to storage.';
   if(st==='idle'){
     if(b.cat==='miner')return'Not on ore this machine can mine.';
     if(b.cat==='smelter')return e.rin?`Waiting for more ${N(e.rin)}.`:'Waiting for ore. Belt it in from any side.';
@@ -860,7 +1154,9 @@ function canPlace(type,x,y){
   const e=at(x,y);
   if(e){if(e.type===type)return'same';if(isBelt(type)&&isBelt(e.type))return'upgrade';return'That tile is already taken.'}
   const b=BUILD[type];
-  if(b.cat==='miner'&&!b.ores.includes(ore[idx(x,y)]))return type==='pump'?'Pumpjacks go on dark oil seeps.':'Drills go on solid ore tiles.';
+  if(isBlocked(x,y))return terr[idx(x,y)]===3?'Clear the jungle growth here first (Clear area tool, X).':`You can't build on ${terrName(x,y).toLowerCase()}.`+(isBelt(type)||type==='tunnel'?' Belt Tunnels can go under it.':'');
+  if(b.onOre&&!b.onOre.includes(ore[idx(x,y)]))return'Geothermal Plants go on a glowing vent. Cinder has them.';
+  if(b.cat==='miner'&&!b.ores.includes(ore[idx(x,y)]))return type==='pump'?'Pumpjacks go on dark oil seeps.':b.oreHint||'Drills go on solid ore tiles.';
   return'ok';
 }
 function missing(c){for(const k in c)if((inv[k]||0)<c[k])return`Need ${c[k]-(inv[k]||0)} more ${N(k)}.`;return''}
@@ -868,6 +1164,7 @@ function applyMeta(e,meta){
   if(!meta)return;
   if(meta.r&&BUILD[e.type].cat==='crafter'&&RECIPES[meta.r]&&unlockedR(meta.r)&&recipeCat(meta.r)===BUILD[e.type].rc)e.recipe=meta.r;
   if(meta.f&&(e.type==='filter'||e.type==='depot'))e.filter=meta.f;
+  if(meta.pr&&e.type==='psplit')e.prio=meta.pr;
   if(meta.m&&BUILD[e.type].slots){for(const m of meta.m){if(e.mods.length>=BUILD[e.type].slots)break;if((inv[m]||0)>0){inv[m]--;e.mods.push(m)}}calcMods(e)}
 }
 function place(type,x,y,dir,quiet,meta){
@@ -876,10 +1173,20 @@ function place(type,x,y,dir,quiet,meta){
   if(c==='upgrade'){const old=at(x,y);if(!canAfford(b.cost)){toast(missing(b.cost));return null}
     logOp({k:'up',x,y,from:old.type});pay(b.cost,'build');refund(BUILD[old.type].cost,'build');old.type=type;old.dir=dir;powerDirty=true;if(!quiet)blip(880,0.04);return old}
   if(c!=='ok'){if(!quiet)toast(c);return null}
-  if(!canAfford(b.cost)){toast(missing(b.cost));return null}
+  if(!canAfford(b.cost)){
+    if(meta&&meta.noGhost){if(!quiet)toast(missing(b.cost));return null}
+    if(!unlockedB(type))return null;
+    // plan it: a ghost that builds itself once storage has the materials
+    const m=meta?{r:meta.r,f:meta.f,m:meta.m,pr:meta.pr}:{r:pipRecipe,f:pipFilter,m:pipMods,pr:pipPrio};
+    const g={ghost:true,type,x,y,dir,m};ghosts.set(idx(x,y),g);
+    if(!(meta&&meta.batch))toast(`Planned. It builds itself when storage has ${Object.keys(b.cost).filter(k=>(inv[k]||0)<b.cost[k]).map(k=>N(k)).join(' and ')} to spare.`);
+    return g}
+  ghosts.delete(idx(x,y));
   pay(b.cost,'build');const e=mkEnt(type,x,y,dir);logOp({k:'add',x,y,t:type});
-  applyMeta(e,meta||{r:pipRecipe,f:pipFilter,m:pipMods});
+  applyMeta(e,meta||{r:pipRecipe,f:pipFilter,m:pipMods,pr:pipPrio});
   if(type==='generator'&&!undoing){let n=0;while(e.fq.length<10&&(inv.coal||0)>0){inv.coal--;e.fq.push('coal');n++}if(n&&!quiet)toast(`Loaded ${n} coal from your inventory`)}
+  if(type==='silo'){siloX(e).dest=siloDefaultDest()}
+  if(type==='dport'&&meta&&meta.dp){Object.assign(dportX(e),{role:meta.dp.role,ch:meta.dp.ch})}
   if(type==='tunnel'&&!(meta&&meta.batch))retunnel();
   for(let i=0;i<5;i++)particles.push({x:x*T+T/2+(Math.random()-.5)*T,y:y*T+T/2+(Math.random()-.5)*T,vx:(Math.random()-.5)*30,vy:(Math.random()-.5)*30,life:.4,max:.4,r:2.2,c:'rgba(242,169,59,1)'});
   if(!meta)blip(isBelt(type)?740:440,0.04,'square',0.025);
@@ -890,13 +1197,17 @@ function collect(e){
   if(e.out)e.out.forEach(addInv);
   if(e.buf)e.buf.forEach(addInv);
   if(e.inb)for(const k in e.inb)if(e.inb[k]>0)addInv(k,e.inb[k]);
+  if(e.ext&&e.ext.cargo){for(const m of [e.ext.cargo,e.ext.sending||{}])for(const k in m)addInv(k,m[k]);if(e.ext.fuel)addInv('rocket_fuel',e.ext.fuel);e.ext.cargo={};e.ext.sending=null;e.ext.n=0;e.ext.fuel=0}
   if(e.crafting){if(e.rin&&SMELT[e.rin]&&BUILD[e.type].cat==='smelter')addInv(e.rin,SMELT[e.rin].n);else if(e.recipe){const r=RECIPES[e.recipe];for(const k in r.in)addInv(k,r.in[k])}}
   if(e.fq)e.fq.forEach(addInv);
   if(e.mods)e.mods.forEach(addInv);
   if(e.tq)e.tq.forEach(it=>addInv(it.id));
 }
 function removeAt(x,y,quiet){
-  const e=at(x,y);if(!e||e.type==='hub')return false;
+  const e=at(x,y);
+  if(!e&&inb(x,y)&&terr&&terr[idx(x,y)]===3){clearGrowth(x,y);if(!quiet)blip(300,0.04,'square',0.02);return true}
+  if(!e&&inb(x,y)&&ghosts.has(idx(x,y))){ghosts.delete(idx(x,y));if(!quiet)blip(260,0.04,'square',0.02);return true}
+  if(!e||e.type==='hub')return false;
   logOp({k:'del',x,y,t:e.type,d:e.dir,r:e.recipe||null,f:e.filter||null,m:e.mods&&e.mods.length?[...e.mods]:null});
   refund(BUILD[e.type].cost,'build');collect(e);
   ents.splice(ents.indexOf(e),1);grid[idx(x,y)]=null;powerDirty=true;
@@ -940,7 +1251,7 @@ function bpName(list){
 function copyArea(x0,y0,x1,y1){
   const list=[];
   for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const e=at(x,y);if(!e||e.type==='hub')continue;
-    const o={t:e.type,dx:x-x0,dy:y-y0,d:e.dir};if(e.recipe)o.r=e.recipe;if(e.filter)o.f=e.filter;if(e.mods&&e.mods.length)o.m=[...e.mods];list.push(o)}
+    const o={t:e.type,dx:x-x0,dy:y-y0,d:e.dir};if(e.prio)o.pr=e.prio;if(e.type==='dport'&&e.ext)o.dp={role:e.ext.role,ch:e.ext.ch};if(e.recipe)o.r=e.recipe;if(e.filter)o.f=e.filter;if(e.mods&&e.mods.length)o.m=[...e.mods];list.push(o)}
   if(!list.length){toast('Nothing to copy in that box.');return}
   const bp={name:bpName(list),ents:list,made:Date.now()};
   bp.ents=bpCells(bp,0).cells;
@@ -950,24 +1261,24 @@ function copyArea(x0,y0,x1,y1){
 }
 function pasteBP(tx,ty){
   const bp=blueprints[bpSel];if(!bp)return;beginAct();const{cells,w,h}=bpCells(bp,bpRot);const ox=tx-Math.floor(w/2),oy=ty-Math.floor(h/2);
-  let placed=0,skipped=0,poor='',locked=0;
+  let placed=0,skipped=0,poor='',locked=0,planned=0;
   for(const c of cells){const x=ox+c.dx,y=oy+c.dy;
     if(!unlockedB(c.t)){locked++;continue}
     const st=canPlace(c.t,x,y);
     if(st==='same'){const e=at(x,y);e.dir=c.d;if(c.r&&e.recipe!==c.r&&BUILD[e.type].cat==='crafter'&&unlockedR(c.r))setRecipe(e,c.r);if(c.f&&(e.type==='filter'||e.type==='depot'))e.filter=c.f;continue}
     if(st!=='ok'){skipped++;continue}
-    if(!canAfford(BUILD[c.t].cost)){skipped++;poor=poor||missing(BUILD[c.t].cost);continue}
-    if(place(c.t,x,y,c.d,true,{...c,batch:true}))placed++;
+    const r2=place(c.t,x,y,c.d,true,{...c,batch:true});if(r2&&r2.ghost){planned++}else if(r2)placed++;
   }
   endAct();if(cells.some(c=>c.t==='tunnel'))retunnel();
   if(placed)blip(620,0.09,'triangle',0.05);
-  let m=`Placed ${placed}`;if(skipped)m+=` · ${skipped} skipped`;if(locked)m+=` · ${locked} not researched`;if(poor)m+=` · ${poor}`;toast(m);
+  let m=`Placed ${placed}`;if(planned)m+=` · ${planned} planned (they build as materials arrive)`;if(skipped)m+=` · ${skipped} skipped`;if(locked)m+=` · ${locked} not researched`;if(poor)m+=` · ${poor}`;toast(m);
 }
 function applyRect(t,ax,ay,bx,by){beginAct();try{applyRect2(t,ax,ay,bx,by)}finally{endAct()}}
 function applyRect2(t,ax,ay,bx,by){
   const x0=Math.max(0,Math.min(ax,bx)),x1=Math.min(W-1,Math.max(ax,bx)),y0=Math.max(0,Math.min(ay,by)),y1=Math.min(H-1,Math.max(ay,by));
   if(t==='copy'){copyArea(x0,y0,x1,y1);return}
-  if(t==='clear'){let n=0;for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)if(removeAt(x,y,true))n++;if(n){toast(`Removed ${n} buildings`);blip(200,0.1,'square',0.03)}return}
+  if(t==='clear'){let n=0,g=0;for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){if(!at(x,y)&&terr&&terr[idx(x,y)]===3){clearGrowth(x,y);g++;continue}if(removeAt(x,y,true))n++}
+    if(n||g){toast([n?`Removed ${n} buildings`:'',g?`Cleared ${g} growth for ${g} biomass. It grows back in a few minutes on bare ground.`:''].filter(Boolean).join(' · '));blip(200,0.1,'square',0.03)}return}
   if(t==='upgrade'){let n=0,poor=0,lockd=0;for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const e=at(x,y);if(!e||e.type==='hub')continue;const r=upgradeEnt(e);if(r==='ok')n++;else if(r==='poor')poor++;else if(r==='locked')lockd++}
     toast(`Upgraded ${n}${poor?` · ${poor} need more materials`:''}${lockd?` · ${lockd} need research`:''}`);if(n)blip(880,0.1,'triangle',0.04)}
 }
@@ -979,8 +1290,8 @@ function bpImport(str){
 }
 
 // ================== PARTICLES ==================
-function smoke(x,y,s){if(particles.length>600)return;particles.push({x:x+(Math.random()-.5)*4,y,vx:(Math.random()-.5)*6+wind*6,vy:-10-Math.random()*8,life:1.6*s+.4,max:1.6*s+.4,r:3+Math.random()*2,c:'rgba(120,118,112,1)',grow:6,smoke:true})}
-function spark(x,y,c,n){for(let i=0;i<n;i++){if(particles.length>600)return;particles.push({x,y,vx:(Math.random()-.5)*70,vy:(Math.random()-.5)*70,life:.35,max:.35,r:1.6,c:hexToRgba(c)})}}
+function smoke(x,y,s){if(simP!==curP)return;if(particles.length>600)return;particles.push({x:x+(Math.random()-.5)*4,y,vx:(Math.random()-.5)*6+wind*6,vy:-10-Math.random()*8,life:1.6*s+.4,max:1.6*s+.4,r:3+Math.random()*2,c:'rgba(120,118,112,1)',grow:6,smoke:true})}
+function spark(x,y,c,n){if(simP!==curP)return;for(let i=0;i<n;i++){if(particles.length>600)return;particles.push({x,y,vx:(Math.random()-.5)*70,vy:(Math.random()-.5)*70,life:.35,max:.35,r:1.6,c:hexToRgba(c)})}}
 function hexToRgba(h){const[r,g,b]=hexRgb(h);return`rgba(${r},${g},${b},1)`}
 
 // ================== ICONS ==================
@@ -1112,34 +1423,54 @@ let dpr=1,cw=0,ch=0;
 function resize(){dpr=Math.min(2,window.devicePixelRatio||1);cw=innerWidth;ch=innerHeight;cv.width=Math.round(cw*dpr);cv.height=Math.round(ch*dpr)}
 addEventListener('resize',resize);resize();
 
-const chunkCache=new Map();
+let chunkCache=new Map();
 function getChunk(cx,cy){
   const key=cx+','+cy;let c=chunkCache.get(key);if(c)return c;
   c=document.createElement('canvas');c.width=c.height=CH*T;const g=c.getContext('2d');
   for(let ty=0;ty<CH;ty++)for(let tx=0;tx<CH;tx++){
     const x=cx*CH+tx,y=cy*CH+ty,px=tx*T,py=ty*T;
     if(!inb(x,y)){g.fillStyle='#0b0d0c';g.fillRect(px,py,T,T);continue}
-    const n=vnoise(x/9,y/9)*0.7+hash2(x,y)*0.3;
-    g.fillStyle=mix('#232720','#2f342a',n);g.fillRect(px,py,T,T);
+    const n=vnoise(x/9,y/9)*0.7+hash2(x,y)*0.3,pal=(PTYPES[ptype]&&PTYPES[ptype].pal)||{g0:'#232720',g1:'#2f342a'};
+    g.fillStyle=mix(pal.g0,pal.g1,n);g.fillRect(px,py,T,T);
+    const tt=terr?terr[idx(x,y)]:0;
+    if(tt===1||tt===2){drawTerrainTile(g,x,y,px,py,tt,pal);continue}
     if(hash2(x+7,y)<0.4){g.fillStyle='rgba(255,255,240,.04)';g.fillRect(px+hash2(x,y+3)*28,py+hash2(x+2,y)*28,2,2)}
     if(hash2(x,y+11)<0.05){g.fillStyle='rgba(0,0,0,.18)';circ(g,px+8+hash2(x+5,y)*16,py+8+hash2(x,y+5)*16,3+hash2(x+1,y+1)*3);g.fill()}
     const o=ore[idx(x,y)];
     if(o===6){g.fillStyle='rgba(0,0,0,.35)';g.fillRect(px,py,T,T);g.fillStyle='#0b0908';g.beginPath();g.ellipse(px+T/2+(hash2(x,y)-.5)*6,py+T/2+(hash2(y,x)-.5)*6,11+hash2(x+3,y)*3,8+hash2(x,y+3)*3,hash2(x,y)*3,0,Math.PI*2);g.fill();
       const gr=g.createLinearGradient(px+6,py+8,px+26,py+24);gr.addColorStop(0,'rgba(120,90,255,.35)');gr.addColorStop(.5,'rgba(80,220,200,.25)');gr.addColorStop(1,'rgba(255,120,200,.2)');g.fillStyle=gr;g.beginPath();g.ellipse(px+T/2-2,py+T/2-2,6,3,.4,0,Math.PI*2);g.fill()}
+    else if(o===VENT){g.fillStyle='#1a0e0a';g.fillRect(px,py,T,T);const gr=g.createRadialGradient(px+T/2,py+T/2,1,px+T/2,py+T/2,T/2);gr.addColorStop(0,'rgba(255,190,80,.95)');gr.addColorStop(.35,'rgba(255,90,30,.7)');gr.addColorStop(1,'rgba(60,10,0,0)');g.fillStyle=gr;g.fillRect(px,py,T,T);
+      g.strokeStyle='rgba(20,8,4,.9)';g.lineWidth=1.4;for(let k=0;k<3;k++){const a=hash2(x+k,y)*6.3;g.beginPath();g.moveTo(px+T/2,py+T/2);g.lineTo(px+T/2+Math.cos(a)*13,py+T/2+Math.sin(a)*13);g.stroke()}}
     else if(o){const oc=ORE_COL[o];g.fillStyle=oc.tint;g.fillRect(px,py,T,T);
       for(let k=0;k<4;k++){const hx=px+6+hash2(x*3+k,y)*20,hy=py+6+hash2(x,y*3+k)*20,r=3+hash2(x+k,y+k)*3.4;
-        if(o===5){g.fillStyle=oc.dark;poly(g,[[0,-1.2],[.7,0],[0,1],[-.7,0]].map(([a,b])=>[a+hx/r+.2,b+hy/r+.25]),r);g.fill();g.fillStyle=oc.c;poly(g,[[0,-1.2],[.7,0],[0,1],[-.7,0]].map(([a,b])=>[a+hx/r,b+hy/r]),r);g.fill()}
+        if(o===5||o===9||o===10){g.fillStyle=oc.dark;poly(g,[[0,-1.2],[.7,0],[0,1],[-.7,0]].map(([a,b])=>[a+hx/r+.2,b+hy/r+.25]),r);g.fill();g.fillStyle=oc.c;poly(g,[[0,-1.2],[.7,0],[0,1],[-.7,0]].map(([a,b])=>[a+hx/r,b+hy/r]),r);g.fill()}
         else{g.fillStyle=oc.dark;circ(g,hx+.8,hy+1.4,r);g.fill();g.fillStyle=oc.c;circ(g,hx,hy,r);g.fill();g.fillStyle=oc.hi;g.fillRect(hx-r*.45,hy-r*.5,r*.45,r*.35)}}}
-    forgeTerrainArt(g,x,y,px,py,o);
+    if(o&&rich&&rich[idx(x,y)]){g.fillStyle='rgba(255,255,255,.06)';g.fillRect(px,py,T,T);for(let k=0;k<3;k++){const sx=px+5+hash2(x*5+k,y*3)*22,sy=py+5+hash2(x*3,y*5+k)*22;g.fillStyle='#fff6d8';g.fillRect(sx-.6,sy-2.2,1.2,4.4);g.fillRect(sx-2.2,sy-.6,4.4,1.2)}}
+    if(o!==VENT&&(o||pal.plants!==false))forgeTerrainArt(g,x,y,px,py,o);
+    if(tt===3)drawGrowthTile(g,x,y,px,py);
     const terrainKey=o?'ore':hash2(x*7,y*9)>.87?'rock':hash2(x*2,y*5)>.67?'dirt':'grass';
-    const tile=ILLUSTRATED_TERRAIN[terrainKey];if(tile){g.save();g.globalAlpha=o?.3:.28;g.drawImage(tile,px,py,T,T);g.restore()}
+    const tile=pal.plants===false&&!o?null:ILLUSTRATED_TERRAIN[terrainKey];if(tile&&o!==VENT){g.save();g.globalAlpha=o?.3:.28;g.drawImage(tile,px,py,T,T);g.restore()}
     g.fillStyle='rgba(0,0,0,.14)';g.fillRect(px,py+T-1,T,1);g.fillRect(px+T-1,py,1,T);
   }
   chunkCache.set(key,c);if(chunkCache.size>110)chunkCache.delete(chunkCache.keys().next().value);
   return c;
 }
+function drawTerrainTile(g,x,y,px,py,tt,pal){
+  const nb=(dx,dy)=>{const nx=x+dx,ny=y+dy;return inb(nx,ny)&&terr[idx(nx,ny)]===tt};
+  if(tt===1){const l=pal.liq||['#1b3a52','#24506d'],v=vnoise(x/5,y/5);g.fillStyle=mix(l[0],l[1],v);g.fillRect(px,py,T,T);
+    g.strokeStyle=pal.liqHi||'rgba(170,215,255,.16)';g.lineWidth=1;for(let k=0;k<2;k++){const yy=py+8+k*12+hash2(x,y+k)*6,xx=px+4+hash2(x+k,y)*12;g.beginPath();g.moveTo(xx,yy);g.quadraticCurveTo(xx+5,yy-2,xx+10,yy);g.stroke()}
+    g.fillStyle=pal.shore||'rgba(140,130,100,.55)';if(!nb(0,-1))g.fillRect(px,py,T,3);if(!nb(0,1))g.fillRect(px,py+T-3,T,3);if(!nb(-1,0))g.fillRect(px,py,3,T);if(!nb(1,0))g.fillRect(px+T-3,py,3,T)}
+  else{g.fillStyle=pal.rock||'#34383b';g.fillRect(px,py,T,T);for(let k=0;k<3;k++){const bx=px+6+hash2(x*7+k,y)*20,by=py+6+hash2(x,y*7+k)*20,r=4+hash2(x+k,y)*4;
+    g.fillStyle='rgba(0,0,0,.35)';circ(g,bx+1.5,by+2,r);g.fill();g.fillStyle=mix(pal.rock||'#34383b','#8a8f92',.35);circ(g,bx,by,r);g.fill();g.fillStyle='rgba(255,255,255,.12)';circ(g,bx-r*.3,by-r*.35,r*.35);g.fill()}}
+}
+function drawGrowthTile(g,x,y,px,py){
+  g.fillStyle='rgba(20,70,30,.55)';g.fillRect(px,py,T,T);
+  for(let k=0;k<6;k++){const lx=px+3+hash2(x*9+k,y)*26,ly=py+3+hash2(x,y*9+k)*26,a=hash2(x+k,y+k)*6.3;g.save();g.translate(lx,ly);g.rotate(a);g.fillStyle=k%2?'#3f9a4a':'#2f7a3c';g.beginPath();g.ellipse(0,0,5,2.2,0,0,Math.PI*2);g.fill();g.restore()}
+  if(hash2(x,y+77)<.25){g.fillStyle='#d880c8';circ(g,px+10+hash2(x,y)*12,py+10+hash2(y,x)*12,1.8);g.fill()}
+}
 function rr(x,y,w,h,r){rrect(ctx,x,y,w,h,r)}
 function base(e,fill,edge){const x=e.x*T,y=e.y*T;ctx.fillStyle=edge;rr(x+1,y+1,T-2,T-2,5);ctx.fill();ctx.fillStyle=fill;rr(x+3,y+3,T-6,T-6,3.5);ctx.fill();ctx.fillStyle='rgba(255,255,255,.08)';ctx.fillRect(x+5,y+3.5,T-10,1.5)}
+const x0b=e=>e.x*T+6;
 function edgeMark(e,dir,col){const cx=e.x*T+T/2,cy=e.y*T+T/2;ctx.save();ctx.translate(cx,cy);ctx.rotate(dir*Math.PI/2);ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(-5,-T/2+5.5);ctx.lineTo(0,-T/2+1);ctx.lineTo(5,-T/2+5.5);ctx.closePath();ctx.fill();ctx.restore()}
 function tierPips(e,n,col){for(let i=0;i<n;i++){ctx.fillStyle=col;ctx.fillRect(e.x*T+T-8-i*4,e.y*T+T-7,2.5,3)}}
 function modPips(e){if(!e.mods||!e.mods.length)return;e.mods.forEach((m,i)=>{ctx.fillStyle=ITEMS[m].color;ctx.fillRect(e.x*T+5+i*4.5,e.y*T+T-6,3.5,3)})}
@@ -1148,8 +1479,8 @@ function statusLight(e,t){if(!e.st)return;if((e.st==='nopower'||e.st==='nopole')
 
 // Individual vector illustrations: each source is a standalone 256x256 SVG asset.
 const ILLUSTRATED_MACHINES={};const ILLUSTRATED_ITEMS={};const ILLUSTRATED_TERRAIN={};
-function loadIllustration(path,store,key){const im=new Image();im.decoding='async';im.onload=()=>{let out=im;if(store===ILLUSTRATED_MACHINES){const c=document.createElement('canvas');c.width=c.height=192;c.getContext('2d').drawImage(im,0,0,192,192);out=c}store[key]=out;if(typeof chunkCache!=='undefined'&&store===ILLUSTRATED_TERRAIN)chunkCache.clear();if(store===ILLUSTRATED_MACHINES&&typeof refreshBuildIcon==='function')refreshBuildIcon(key)};im.onerror=()=>{};im.src='assets/illustrated/'+path;}
-const ILLUSTRATED_SKIP=new Set(['belt','belt2','belt3','belt4','wind']);
+function loadIllustration(path,store,key){const im=new Image();im.decoding='async';im.onload=()=>{let out=im;if(store===ILLUSTRATED_MACHINES){const c=document.createElement('canvas');c.width=c.height=192;c.getContext('2d').drawImage(im,0,0,192,192);out=c}store[key]=out;if(typeof chunkCache!=='undefined'&&store===ILLUSTRATED_TERRAIN)chunkCache.clear();if(store===ILLUSTRATED_MACHINES&&typeof refreshBuildIcon==='function')refreshBuildIcon(key)};im.onerror=()=>{};const inl=window.ILLUSTRATIONS&&window.ILLUSTRATIONS[path];im.src=inl?'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(inl):'assets/illustrated/'+path;}
+const ILLUSTRATED_SKIP=new Set(['belt','belt2','belt3','belt4','wind','psplit','uplink','silo','geo','fusion','dport']);
 if(location.protocol.startsWith('http'))for(const key of Object.keys(BUILD))if(!ILLUSTRATED_SKIP.has(key))loadIllustration('machine-'+key+'.svg',ILLUSTRATED_MACHINES,key);
 if(location.protocol.startsWith('http'))for(const key of ['grass','dirt','rock','sand','ore','water'])loadIllustration('terrain-'+key+'.svg',ILLUSTRATED_TERRAIN,key);
 const GLOW_SPR={};
@@ -1236,6 +1567,10 @@ function drawMachine(e,t,icon){
       if(e.recipe)ctx.drawImage(ICON[e.recipe],cx-2,cy-5,12,12);
       if(e.crafting){ctx.fillStyle='#000a';ctx.fillRect(x+6,y+T-6,T-12,2.5);ctx.fillStyle='#f2a93b';ctx.fillRect(x+6,y+T-6,(T-12)*Math.min(1,e.prog),2.5)}
       modPips(e);edgeMark(e,e.dir,'#f2a93b');break}
+    case'psplit':{base(e,'#3a3f45','#16181b');const pd=prioOrder(e)[0];
+      ctx.save();ctx.translate(cx,cy);ctx.strokeStyle='#8a9198';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,0);for(const d of [e.dir,(e.dir+3)%4,(e.dir+1)%4]){ctx.moveTo(0,0);ctx.lineTo(DX[d]*7,DY[d]*7)}ctx.stroke();
+      ctx.strokeStyle='#6cd17a';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(DX[pd]*8,DY[pd]*8);ctx.stroke();ctx.fillStyle='#6cd17a';circ(ctx,0,0,3);ctx.fill();ctx.restore();
+      for(const d of [e.dir,(e.dir+3)%4,(e.dir+1)%4])edgeMark(e,d,d===pd?'#6cd17a':'#f2a93b');break}
     case'splitter':{base(e,'#3a3f45','#16181b');ctx.save();ctx.translate(cx,cy);ctx.rotate(e.dir*Math.PI/2);ctx.strokeStyle='#d9a43a';ctx.lineWidth=2.2;
       ctx.beginPath();ctx.moveTo(0,6);ctx.lineTo(0,-6);ctx.moveTo(0,1);ctx.lineTo(-7,1);ctx.moveTo(0,1);ctx.lineTo(7,1);ctx.stroke();ctx.restore();
       edgeMark(e,e.dir,'#f2a93b');edgeMark(e,(e.dir+3)%4,'#f2a93b');edgeMark(e,(e.dir+1)%4,'#f2a93b');break}
@@ -1256,6 +1591,13 @@ function drawMachine(e,t,icon){
       ctx.fillStyle='#070707';ctx.beginPath();ctx.ellipse(0,out?1:-1,9,4.5,0,0,Math.PI*2);ctx.fill();
       ctx.fillStyle='#d9a43a';ctx.fillRect(-T/2+3,out?T/2-4:-T/2+2,T-6,2);
       ctx.restore();if(!icon&&!e.pair){ctx.fillStyle='#ef5b4c';ctx.font='800 11px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('!',x+T-7,y+T-8)}break}
+    case'uplink':{base(e,'#24323d','#0c1419');const p2=e.pulse||0;
+      drawGlow(cx,cy-3,16,'rgba(110,200,255,A)',.15+p2*.6);
+      ctx.fillStyle='#55646f';ctx.fillRect(cx-1.5,cy+1,3,9);ctx.fillStyle='#3a4852';ctx.fillRect(cx-6,cy+8,12,3);
+      ctx.save();ctx.translate(cx,cy-2);ctx.rotate(-0.5+Math.sin((e.anim||0)*0.6)*0.25);ctx.fillStyle='#c6d4dc';ctx.beginPath();ctx.ellipse(0,0,9,4.5,0,Math.PI,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='#7f9aa8';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-7);ctx.stroke();ctx.fillStyle=p2>.1?'#a8e6ff':'#6aa9c8';circ(ctx,0,-7.5,1.8);ctx.fill();ctx.restore();
+      if(!icon&&p2>.05){ctx.strokeStyle=`rgba(150,220,255,${p2*.8})`;ctx.lineWidth=1.2;circ(ctx,cx,cy-9,6+(1-p2)*10);ctx.stroke()}
+      break}
     case'depot':{base(e,'#3b3326','#17130c');ctx.strokeStyle='#d9a43a';ctx.lineWidth=1.6;ctx.setLineDash([3,3]);circ(ctx,cx,cy,10);ctx.stroke();ctx.setLineDash([]);
       if(e.filter)ctx.drawImage(ICON[e.filter],cx-8,cy-8,16,16);else{ctx.fillStyle='#8f978d';ctx.font='700 10px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('?',cx,cy+.5)}
       edgeMark(e,e.dir,'#f2a93b');break}
@@ -1275,6 +1617,22 @@ function drawMachine(e,t,icon){
       const gl=(Math.sin(t*0.8+e.x*0.7+e.y*0.3)+1)/2*(icon?1:sun);ctx.fillStyle=`rgba(200,230,255,${0.06+gl*0.18})`;ctx.beginPath();ctx.moveTo(x+5,y+T-5);ctx.lineTo(x+14,y+5);ctx.lineTo(x+19,y+5);ctx.lineTo(x+10,y+T-5);ctx.fill();break}
     case'accumulator':{base(e,'#28332d','#0e1310');const f=(e.charge||0)/BUILD.accumulator.store;
       for(let k=0;k<3;k++){const bx=x+6+k*7.3;ctx.fillStyle='#14191a';rr(bx,y+6,5.5,T-12,1.5);ctx.fill();const hh=(T-14)*f;ctx.fillStyle=f>0.2?'#5aa9f0':'#e6b84a';ctx.fillRect(bx+1,y+T-7-hh,3.5,hh);ctx.fillStyle='#c8ccd2';ctx.fillRect(bx+1.5,y+4.5,2.5,2)}break}
+    case'silo':{base(e,'#2e3238','#101215');const x=e.ext||{n:0,anim:0},f=x.n/SILO_CAP;ctx.strokeStyle='#596169';ctx.lineWidth=2;circ(ctx,cx,cy,11);ctx.stroke();
+      ctx.fillStyle='#0b0d0f';circ(ctx,cx,cy,9);ctx.fill();
+      const up=x.anim>0?(SILO_ANIM-x.anim)*(SILO_ANIM-x.anim)*30:0;if(!icon&&x.anim>0||icon||x.n>0||x.charge>0){ctx.save();ctx.translate(cx,cy-up);ctx.fillStyle='#e8e8ee';ctx.beginPath();ctx.moveTo(0,-9);ctx.quadraticCurveTo(4,-4,3.5,5);ctx.lineTo(-3.5,5);ctx.quadraticCurveTo(-4,-4,0,-9);ctx.fill();
+        ctx.fillStyle='#d9534a';ctx.fillRect(-3.5,3,7,2.5);if(x.anim>0){ctx.fillStyle='rgba(255,180,80,.9)';ctx.beginPath();ctx.moveTo(-3,6);ctx.lineTo(0,13+Math.random()*5);ctx.lineTo(3,6);ctx.fill()}ctx.restore()}
+      ctx.fillStyle='rgba(0,0,0,.75)';ctx.fillRect(x0b(e),e.y*T+T-6.5,T-12,2.6);ctx.fillStyle='#f2a93b';ctx.fillRect(x0b(e),e.y*T+T-6.5,(T-12)*f,2.6);
+      if(x.charge>0){ctx.fillStyle='#5aa9f0';ctx.fillRect(x0b(e),e.y*T+4,(T-12)*x.charge/SILO_CHARGE,2)}break}
+    case'dport':{const x2=e.ext||{role:'send',ch:1};base(e,x2.role==='recv'?'#1f3340':'#2a3240','#0c1216');ctx.strokeStyle='#6ab8ff';ctx.lineWidth=1.6;ctx.strokeRect(cx-8,cy-8,16,16);
+      ctx.fillStyle='#6ab8ff';ctx.font='700 10px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(x2.ch),cx,cy+.5);
+      ctx.fillStyle=x2.role==='recv'?'#6cd17a':'#f2a93b';ctx.beginPath();if(x2.role==='recv'){ctx.moveTo(cx-4,cy-12);ctx.lineTo(cx+4,cy-12);ctx.lineTo(cx,cy-9)}else{ctx.moveTo(cx-4,cy-9);ctx.lineTo(cx+4,cy-9);ctx.lineTo(cx,cy-12.5)}ctx.fill();
+      if(x2.role==='recv')edgeMark(e,e.dir,'#f2a93b');break}
+    case'geo':{base(e,'#3a2a22','#140c08');const g=ctx.createRadialGradient(cx,cy,1,cx,cy,12);g.addColorStop(0,'rgba(255,200,90,.95)');g.addColorStop(.6,'rgba(255,100,30,.5)');g.addColorStop(1,'rgba(255,100,30,0)');ctx.fillStyle=g;circ(ctx,cx,cy,12);ctx.fill();
+      ctx.fillStyle='#1c1512';ctx.fillRect(cx-9,cy-3,18,6);ctx.fillRect(cx-3,cy-9,6,18);ctx.strokeStyle='#8a6a50';ctx.lineWidth=1.5;circ(ctx,cx,cy,5);ctx.stroke();break}
+    case'fusion':{base(e,'#2a2236','#0e0a14');const l=e.load||0,ph=(e.anim||0);ctx.strokeStyle='#7a5a9a';ctx.lineWidth=2;circ(ctx,cx,cy,11);ctx.stroke();
+      ctx.save();ctx.translate(cx,cy);ctx.rotate(ph);ctx.strokeStyle=`rgba(255,122,216,${.35+.6*l})`;ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(0,0,8,3.5,0,0,Math.PI*2);ctx.stroke();ctx.rotate(Math.PI/2);ctx.beginPath();ctx.ellipse(0,0,8,3.5,0,0,Math.PI*2);ctx.stroke();ctx.restore();
+      ctx.fillStyle=`rgba(255,200,240,${.3+.7*l})`;circ(ctx,cx,cy,2.5);ctx.fill();
+      for(let k=0;k<4;k++){ctx.fillStyle=k<(e.fq?e.fq.length:0)?'#ff7ad8':'#1a1424';ctx.fillRect(x+6+k*5.5,y+T-6,4,2.5)}break}
     case'reactor':{base(e,'#2a3a3f','#0d1416');const l=e.load||0;ctx.strokeStyle='#5d7a80';ctx.lineWidth=2;circ(ctx,cx,cy,10);ctx.stroke();
       const g=ctx.createRadialGradient(cx,cy,1,cx,cy,13);g.addColorStop(0,`rgba(140,255,200,${.25+.7*l})`);g.addColorStop(.6,`rgba(60,220,170,${.15+.4*l})`);g.addColorStop(1,'rgba(60,220,170,0)');ctx.fillStyle=g;circ(ctx,cx,cy,13);ctx.fill();
       ctx.fillStyle='#0d1416';for(let k=0;k<4;k++){ctx.save();ctx.translate(cx,cy);ctx.rotate(k*Math.PI/2+Math.PI/4);ctx.fillRect(-1.5,-11,3,6);ctx.restore()}
@@ -1294,6 +1652,42 @@ function drawHub(h,t){
   ctx.fillStyle='#ece6d6';ctx.font='800 11px "Saira Condensed",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('HUB',cx,y+S-15);
 }
 function mouseTile(){const w=toWorld(mouse.x,mouse.y);return[Math.floor(w.x/T),Math.floor(w.y/T)]}
+// ---- map overlays (V) ----
+let overlay=0;const OVERLAYS=['','power','status','resources'];
+const OV_TXT={power:'Power view: green is fully powered, amber is slowed, red is not connected. Blue shows pole coverage.',status:'Status view: green working, yellow waiting for input, red output blocked, blue no power, purple not connected, grey needs a recipe.',resources:'Resource view: buildings fade so ore, rich ore and terrain stand out.'};
+// Clicking an alert cycles the camera through the buildings it is about
+let alertIx={};
+function alertTargets(k){
+  if(k==='fuel')return ents.filter(e=>BUILD[e.type]&&BUILD[e.type].fuels&&!e.fq.length&&e.energy<=0);
+  if(k==='loose')return ents.filter(e=>BUILD[e.type]&&BUILD[e.type].power&&pwOf(e)<0);
+  if(k==='short')return ents.filter(e=>BUILD[e.type]&&BUILD[e.type].power&&pwOf(e)>=0&&pwOf(e)<0.98);
+  if(k==='tunnel')return ents.filter(e=>e.type==='tunnel'&&!e.pair);
+  if(k==='ghost')return[...ghosts.values()];
+  return[];
+}
+function alertGo(k){
+  if(k==='tech'){openTech();return}
+  if(k==='resume'){setSpeed(1);return}
+  const list=alertTargets(k);if(!list.length){toast('Nothing left to show.');return}
+  const i=(alertIx[k]||0)%list.length;alertIx[k]=i+1;const e=list[i];
+  cam.x=e.x*T+T/2;cam.y=e.y*T+T/2;if(zoom<1)zoom=1.2;
+  flashes.push({x:e.x,y:e.y,t:performance.now()});
+  if(!e.ghost)openInspector(e);
+  if(list.length>1)toast(`${i+1} of ${list.length}. Click the alert again for the next one.`);
+}
+function cycleOverlay(){overlay=(overlay+1)%OVERLAYS.length;const o=OVERLAYS[overlay];toast(o?OV_TXT[o]+' Press V again to change.':'Overlay off.');blip(640,0.04,'triangle');updateModebar()}
+function drawOverlay(x0,x1,y0,y1,belts,mach){
+  const o=OVERLAYS[overlay];ctx.save();
+  if(o==='resources'){ctx.fillStyle='rgba(11,13,12,.62)';for(const e of belts.concat(mach))ctx.fillRect(e.x*T,e.y*T,T,T);
+    for(let y=Math.max(0,y0);y<=Math.min(H-1,y1);y++)for(let x=Math.max(0,x0);x<=Math.min(W-1,x1);x++){const i=idx(x,y),oo=ore[i];if(!oo)continue;
+      ctx.fillStyle=ORE_COL[oo].c;ctx.globalAlpha=rich[i]?.8:.42;ctx.fillRect(x*T+3,y*T+3,T-6,T-6);if(rich[i]){ctx.globalAlpha=1;ctx.strokeStyle='#fff6';ctx.lineWidth=1.5;ctx.strokeRect(x*T+3,y*T+3,T-6,T-6)}}
+    ctx.globalAlpha=1}
+  else if(o==='power'){
+    if(netOf&&!legacyPower){ctx.fillStyle='rgba(90,169,240,.12)';for(let y=Math.max(0,y0);y<=Math.min(H-1,y1);y++)for(let x=Math.max(0,x0);x<=Math.min(W-1,x1);x++)if(netOf[idx(x,y)]>=0)ctx.fillRect(x*T,y*T,T,T)}
+    for(const e of mach){const b=BUILD[e.type];if(!b||!b.power)continue;const p=pwOf(e);ctx.fillStyle=p<0?'rgba(239,91,76,.5)':p<0.98?'rgba(232,195,74,.45)':'rgba(108,209,122,.35)';ctx.fillRect(e.x*T+2,e.y*T+2,T-4,T-4)}}
+  else if(o==='status'){for(const e of mach){if(!e.st||!ST_COL[e.st])continue;ctx.globalAlpha=.42;ctx.fillStyle=ST_COL[e.st];ctx.fillRect(e.x*T+2,e.y*T+2,T-4,T-4);ctx.globalAlpha=1}}
+  ctx.restore();
+}
 function drawGhost(t){
   if(!mouse.in||drag&&(drag.mode==='pan'||drag.mode==='rect'))return;
   const[tx,ty]=mouseTile();
@@ -1342,6 +1736,14 @@ function render(now){
     for(const[a,b]of wires){const ax=a.x*T+T/2,ay=a.y*T+T/2-(a.type==='hub'?0:8),bx=b.x*T+T/2,by=b.y*T+T/2-(b.type==='hub'?0:8);
       if(Math.max(ax,bx)<L||Math.min(ax,bx)>Rr||Math.max(ay,by)<Tt||Math.min(ay,by)>B)continue;
       const sag=Math.min(18,Math.hypot(bx-ax,by-ay)*0.06);ctx.beginPath();ctx.moveTo(ax,ay);ctx.quadraticCurveTo((ax+bx)/2,(ay+by)/2+sag,bx,by);ctx.stroke()}}
+  if(drones.length&&zoom>0.25)for(const d of drones){const f=Math.min(1,d.t/d.dur),k=d.back?1-f:f,ex=k*k*(3-2*k),px=(d.fx+(d.tx-d.fx)*ex)*T+T/2,py=(d.fy+(d.ty-d.fy)*ex)*T+T/2-10-Math.sin(ex*Math.PI)*14;
+    ctx.fillStyle='rgba(0,0,0,.3)';circ(ctx,px,py+16,3);ctx.fill();ctx.fillStyle='#cfd8e0';circ(ctx,px,py,3.6);ctx.fill();ctx.strokeStyle='#6ab8ff';ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(px-6,py-2);ctx.lineTo(px+6,py-2);ctx.stroke();
+    if(!d.back&&d.items.length){ctx.fillStyle=ITEMS[d.items[0]]?ITEMS[d.items[0]].color:'#fff';ctx.fillRect(px-2,py+3,4,3)}}
+  if(loadedP===0&&has('ark')){const cx=hub.x*T+T/2,cy=hub.y*T+T/2,rr2=T*4.2,segs=ARK.length;
+    for(let k=0;k<segs;k++){const done=k<ark.phase,part=k===ark.phase?(()=>{const n=ARK[k].need;let a=0,b=0;for(const q in n){a+=Math.min(ark.paid[q]||0,n[q]);b+=n[q]}return a/b})():done?1:0;
+      const a0=-Math.PI/2+k*Math.PI*2/segs+.06,a1=a0+(Math.PI*2/segs-.12);
+      ctx.strokeStyle='rgba(200,210,230,.18)';ctx.lineWidth=7;ctx.beginPath();ctx.arc(cx,cy,rr2,a0,a1);ctx.stroke();
+      if(part>0){ctx.strokeStyle=done?'#e8e8ee':'#f2a93b';ctx.lineWidth=5;ctx.beginPath();ctx.arc(cx,cy,rr2,a0,a0+(a1-a0)*part);ctx.stroke()}}}
   for(const p of particles){const a=Math.max(0,p.life/p.max);ctx.fillStyle=p.c.replace(/,1\)$/,`,${p.smoke?a*.35:a})`);circ(ctx,p.x,p.y,p.r+(p.grow?(1-a)*p.grow:0));ctx.fill()}
   // night
   const dark=(1-sun)*0.6;
@@ -1358,34 +1760,49 @@ function render(now){
     ctx.globalCompositeOperation='source-over'}
   if(inspected){ctx.strokeStyle='#f2a93b';ctx.lineWidth=2;ctx.setLineDash([5,4]);if(inspected.type==='hub')rr((hub.x-1)*T-2,(hub.y-1)*T-2,3*T+4,3*T+4,10);else rr(inspected.x*T-1,inspected.y*T-1,T+2,T+2,6);ctx.stroke();ctx.setLineDash([])}
   if(mouse.in&&!sel&&bpSel===null){const[tx,ty]=mouseTile();if(inb(tx,ty)){ctx.strokeStyle=tool?TOOL_COL[tool]:'rgba(236,230,214,.35)';ctx.lineWidth=1.5;rr(tx*T+1,ty*T+1,T-2,T-2,4);ctx.stroke()}}
+  if(overlay)drawOverlay(x0,x1,y0,y1,belts,mach);
+  if(ghosts.size){ctx.save();for(const g of ghosts.values()){if(g.x<x0||g.x>x1||g.y<y0||g.y>y1)continue;const f=fakeEnt(g.type,g.dir);f.x=g.x;f.y=g.y;f.recipe=g.m&&g.m.r||null;f.anim=0;f.load=0;f.charge=0;f.fq=[];
+      ctx.globalAlpha=.38;if(isBelt(g.type))drawBelt(f,0,true);else drawMachine(f,0,true);ctx.globalAlpha=1;ctx.strokeStyle='rgba(120,200,255,.85)';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);ctx.strokeRect(g.x*T+2,g.y*T+2,T-4,T-4);ctx.setLineDash([])}ctx.restore()}
   drawGhost(t);
   if(flashes.length){const now=performance.now();flashes=flashes.filter(f=>now-f.t<700);for(const f of flashes){const a=1-(now-f.t)/700;ctx.fillStyle=`rgba(239,91,76,${.45*a})`;ctx.fillRect(f.x*T,f.y*T,T,T);ctx.strokeStyle=`rgba(255,140,120,${a})`;ctx.lineWidth=2;ctx.strokeRect(f.x*T+1,f.y*T+1,T-2,T-2)}}
   if(drag&&drag.mode==='rect'){const ax=Math.min(drag.x0,drag.x1),ay=Math.min(drag.y0,drag.y1),bw=Math.abs(drag.x1-drag.x0)+1,bh=Math.abs(drag.y1-drag.y0)+1,col=TOOL_COL[drag.tool];
     ctx.fillStyle=col+'22';ctx.fillRect(ax*T,ay*T,bw*T,bh*T);ctx.strokeStyle=col;ctx.lineWidth=2/zoom+.5;ctx.setLineDash([8,5]);ctx.strokeRect(ax*T,ay*T,bw*T,bh*T);ctx.setLineDash([]);
     ctx.fillStyle=col;ctx.font=`700 ${13/zoom}px "IBM Plex Mono",monospace`;ctx.textAlign='left';ctx.textBaseline='bottom';ctx.fillText(`${bw}×${bh}`,ax*T,ay*T-3/zoom)}
   if(mining&&mining.t>0){const cx=mining.x*T+T/2,cy=mining.y*T+T/2;ctx.strokeStyle='#f2a93b';ctx.lineWidth=3;ctx.beginPath();ctx.arc(cx,cy,11,-Math.PI/2,-Math.PI/2+Math.PI*2*mining.t/0.45);ctx.stroke()}
-  if(launch){const cx=hub.x*T+T/2,cy=hub.y*T+T/2-launch.t*launch.t*40;ctx.drawImage(ICON.rocket_part,cx-26,cy-34,52,52)}
+  if(launch){const cx=hub.x*T+T/2,cy=hub.y*T+T/2-launch.t*launch.t*40,sz=launch.ark?120:52;ctx.drawImage(ICON[launch.ark?'hull_segment':'rocket_part'],cx-sz/2,cy-sz*.65,sz,sz)}
 }
 
 // ================== UPDATE LOOP ==================
 let curDt=1/60;
 function update(dt){
-  curDt=dt;
-  playTime+=dt;
-  const ph=(playTime%DAY)/DAY;sun=Math.max(0,Math.min(1,0.55+0.85*Math.sin(ph*Math.PI*2)));
-  wind=Math.max(0.08,Math.min(1,0.55+0.3*Math.sin(playTime/37)+0.2*Math.sin(playTime/11.3+1.7)));
+  curDt=dt;playTime+=dt;
+  stashP(planets[curP]);
+  for(let i=0;i<planets.length;i++){simP=i;loadP(planets[i]);updatePlanet(dt);stashP(planets[i])}
+  simP=curP;loadP(planets[curP]);
+  stepFlights(dt);
+  arkStep(dt);
+  researchStep(dt);
+  if(mining){if(mouse.down&&mouse.btn===0){const[tx,ty]=mouseTile();if(tx===mining.x&&ty===mining.y){mining.t+=dt;if(mining.t>=0.45){mining.t=0;const o=ore[idx(mining.x,mining.y)];if(o&&o!==6&&ORE_ITEM[o]){addInv(ORE_ITEM[o]);addMade(ORE_ITEM[o],1,'hand');spark(mining.x*T+T/2,mining.y*T+T/2,ORE_COL[o].c,6);blip(300+Math.random()*80,0.05,'square',0.03)}else{mining=null;toast(o===VENT?'Vents feed a Geothermal Plant.':'Oil needs a Pumpjack.')}}}else mining=null}else mining=null}
+  if(launch){launch.t+=dt;const cx=hub.x*T+T/2,cy=hub.y*T+T/2-launch.t*launch.t*40+14;for(let k=0;k<3;k++)particles.push({x:cx+(Math.random()-.5)*10,y:cy,vx:(Math.random()-.5)*40,vy:40+Math.random()*60,life:.7,max:.7,r:3+Math.random()*3,c:Math.random()<.5?'rgba(255,190,90,1)':'rgba(255,110,50,1)'});
+    if(launch.t>5.5&&!launch.shown){launch.shown=true;if(launch.colony){colonize(launch.colony);showColony(launch.colony);renderPBar()}else showVictory();launch=null}}
+}
+// One planet's tick: weather, machines, power, history, particles
+function updatePlanet(dt){
+  const pt=PTYPES[ptype]||PTYPES.home,ph=((playTime+pt.phase*DAY)%DAY)/DAY;
+  sun=Math.max(0,Math.min(1,0.55+0.85*Math.sin(ph*Math.PI*2)))*pt.sunMax;
+  wind=Math.max(0.08,Math.min(1,0.55+0.3*Math.sin(playTime/37+pt.phase*9)+0.2*Math.sin(playTime/11.3+1.7)))*pt.windMul;
   if(powerDirty)rebuildPower();
   for(let i=0;i<ents.length;i++){const e=ents[i];const c=BUILD[e.type]?BUILD[e.type].cat:'hub';const pw=BUILD[e.type]&&BUILD[e.type].power?pwOf(e):1;
     switch(c){case'belt':updBelt(e,dt);break;case'miner':updMiner(e,dt,pw);break;case'smelter':updFurnace(e,dt,pw);break;case'crafter':updCrafter(e,dt,pw);break;
-      case'logi':if(e.type==='splitter')updSplit(e);else if(e.type==='filter')updFilter(e);else if(e.type==='tunnel')updTunnel(e,dt);else if(e.type==='depot')updDepot(e,dt);else updChest(e,dt);break;
+      case'logi':if(e.type==='splitter')updSplit(e);else if(e.type==='psplit')updPSplit(e);else if(e.type==='filter')updFilter(e);else if(e.type==='tunnel')updTunnel(e,dt);else if(e.type==='depot')updDepot(e,dt);else if(e.type==='uplink')updUplink(e,dt);else if(e.type==='silo')updSilo(e,dt);else if(e.type==='dport')updDport(e,dt);else updChest(e,dt);break;
       case'hub':e.pulse=Math.max(0,e.pulse-dt*2.5);e.rot+=dt*(0.4+e.pulse*1.5);break}}
-  powerStep(dt);researchStep(dt);
-  if(mining){if(mouse.down&&mouse.btn===0){const[tx,ty]=mouseTile();if(tx===mining.x&&ty===mining.y){mining.t+=dt;if(mining.t>=0.45){mining.t=0;const o=ore[idx(mining.x,mining.y)];if(o&&o!==6){addInv(ORE_ITEM[o]);addMade(ORE_ITEM[o],1,'hand');spark(mining.x*T+T/2,mining.y*T+T/2,ORE_COL[o].c,6);blip(300+Math.random()*80,0.05,'square',0.03)}else{mining=null;toast('Oil needs a Pumpjack.')}}}else mining=null}else mining=null}
+  powerStep(dt);
+  if(drones.length)stepDrones(dt);
+  if((Math.floor(playTime*4)!==Math.floor((playTime-dt)*4)))buildGhosts();
+  if(cleared.size&&Math.floor(playTime/5)!==Math.floor((playTime-dt)/5))regrow();
   bucketT+=dt;if(bucketT>=1){bucketT-=1;buckets.push({m:curMade,d:curDel,u:curUsed,ms:curMS,us:curUS,s:{...inv},dur:1});if(buckets.length>60)buckets.shift();curMade={};curDel={};curUsed={};curMS={};curUS={};
     if(++secN%60===0)rollMinute()}
   for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;if(p.life<=0)particles.splice(i,1)}
-  if(launch){launch.t+=dt;const cx=hub.x*T+T/2,cy=hub.y*T+T/2-launch.t*launch.t*40+14;for(let k=0;k<3;k++)particles.push({x:cx+(Math.random()-.5)*10,y:cy,vx:(Math.random()-.5)*40,vy:40+Math.random()*60,life:.7,max:.7,r:3+Math.random()*3,c:Math.random()<.5?'rgba(255,190,90,1)':'rgba(255,110,50,1)'});
-    if(launch.t>5.5&&!launch.shown){launch.shown=true;showVictory()}}
 }
 let last=performance.now(),uiT=0,miniT=0,slowT=0,simClock=0;
 function frame(now){
@@ -1396,7 +1813,7 @@ function frame(now){
   render(simClock*1000);
   if(simSpeed===0){ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='rgba(11,13,12,.25)';ctx.fillRect(0,0,cw,ch);ctx.fillStyle='#ece6d6';ctx.font='800 28px "Saira Condensed",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('PAUSED',cw/2,ch*0.32)}
   uiT+=dt;if(uiT>0.2){uiT=0;updateUI()}
-  slowT+=dt;if(slowT>1){slowT=0;renderObjectives();if(!statsEl.hidden)renderStats()}
+  slowT+=dt;if(slowT>1){slowT=0;renderObjectives();renderPBar();renderTrade();renderArk();{const ab=$('arkBtn');if(ab)ab.hidden=!has('ark')}if(!statsEl.hidden)renderStats()}
   miniT+=dt;if(miniT>0.5){miniT=0;drawMini()}
   requestAnimationFrame(frame);
 }
@@ -1405,7 +1822,7 @@ function frame(now){
 function toWorld(mx,my){return{x:(mx-cw/2)/zoom+cam.x,y:(my-ch/2)/zoom+cam.y}}
 function tileAt(mx,my){const w=toWorld(mx,my);return[Math.floor(w.x/T),Math.floor(w.y/T)]}
 let spaceDown=false;
-function clearModes(){sel=null;tool=null;bpSel=null;pipRecipe=null;pipFilter=null;pipMods=null;refreshHotbar();updateModebar()}
+function clearModes(){sel=null;tool=null;bpSel=null;pipRecipe=null;pipFilter=null;pipMods=null;pipPrio=null;refreshHotbar();updateModebar()}
 function setTool(t){const was=tool===t;clearModes();if(!was){tool=t;closeInspector()}refreshHotbar();updateModebar()}
 function setSel(t){const keepPip=false;clearModes();sel=t;if(t)closeInspector();refreshHotbar();updateModebar()}
 function setBP(i){clearModes();bpSel=i;bpRot=0;closeInspector();refreshHotbar();updateModebar()}
@@ -1441,9 +1858,9 @@ cv.addEventListener('pointermove',ev=>{
   if(drag.mode==='place'){
     stepLine(drag.lx,drag.ly,tx,ty,(x,y,d)=>{
       if(isBelt(sel)){if(drag.placed&&isBelt(drag.placed.type)&&drag.placed.x===x-DX[d]&&drag.placed.y===y-DY[d])drag.placed.dir=d;rot=d;
-        const occ=at(x,y);
-        if(occ&&!isBelt(occ.type)){ // something solid in the way
-          if(occ.type!=='hub'){if(!drag.block)drag.block={from:drag.placed&&isBelt(drag.placed.type)?drag.placed:null,d,n:0,what:occ.type==='tunnel'?'a Belt Tunnel':BUILD[occ.type].name};drag.block.n++;flashTile(x,y)}
+        const occ=at(x,y),wall=!occ&&isBlocked(x,y);
+        if((occ&&!isBelt(occ.type))||wall){ // something solid in the way
+          if(wall||occ.type!=='hub'){if(!drag.block)drag.block={from:drag.placed&&isBelt(drag.placed.type)?drag.placed:null,d,n:0,what:wall?terrName(x,y).toLowerCase():occ.type==='tunnel'?'a Belt Tunnel':BUILD[occ.type].name};drag.block.n++;flashTile(x,y)}
           drag.placed=null;return}
         if(drag.block){const bl=drag.block;drag.block=null;if(tryAutoTunnel(bl,x,y,d)){drag.placed=at(x,y);return}}
       }
@@ -1485,6 +1902,10 @@ addEventListener('keydown',ev=>{
   if(k==='c'){setTool('copy');return}
   if(k==='u'){setTool('upgrade');return}
   if(k==='x'){setTool('clear');return}
+  if(k==='v'){cycleOverlay();return}
+  if(k==='['||k===']'){if(planets.length>1)switchPlanet((curP+(k===']'?1:planets.length-1))%planets.length);return}
+  if(k==='o'){if(planets.length>1)openTrade();return}
+  if(k==='k'){openArk();return}
   if(k==='b'){toggleDrawer(libEl);return}
   if(k==='g'){openRecipes();return}
   if(k==='i'||k==='e'){toggleDrawer(invEl);return}
@@ -1525,7 +1946,7 @@ function deselectAll(){
   clearModes();closeInspector();invEl.hidden=true;statsEl.hidden=true;libEl.hidden=true;hideTip();refreshHotbar(true);
   if(any)blip(330,0.03,'triangle',0.025);
 }
-function pipette(e){clearModes();sel=e.type;rot=e.dir;pipRecipe=e.recipe||null;pipFilter=e.filter||null;pipMods=e.mods&&e.mods.length?[...e.mods]:null;closeInspector();refreshHotbar();updateModebar()}
+function pipette(e){clearModes();sel=e.type;rot=e.dir;pipRecipe=e.recipe||null;pipFilter=e.filter||null;pipPrio=e.prio||null;pipMods=e.mods&&e.mods.length?[...e.mods]:null;closeInspector();refreshHotbar();updateModebar()}
 function feed(e){const b=BUILD[e.type];let n=0;for(const f of [...b.fuels].reverse()){while(e.fq.length<b.fmax&&(inv[f]||0)>0){inv[f]--;e.fq.push(f);n++}}if(n){blip(500,0.06,'triangle');toast(`Added ${n} fuel`)}else toast(`No ${b.fuels.map(N).join(' or ')} in inventory.`)}
 
 // ================== UI ==================
@@ -1563,6 +1984,7 @@ function updateModebar(){
   else if(bpSel!==null&&blueprints[bpSel]){const bp=blueprints[bpSel];h=`<span class="m" style="color:var(--blue)">${esc(bp.name)}</span><span class="d">Click to paste · <kbd>R</kbd> rotate · <kbd>Esc</kbd> cancel</span>${costHTML(sumCost(bp.ents.map(o=>o.t)))}`}
   else if(sel){const DN=['up','right','down','left'];h=`<span class="m">${BUILD[sel].name}</span>${pipRecipe?`<span class="d">${img(pipRecipe,16)} ${N(pipRecipe)}</span>`:''}<span class="d">${['pole','power'].includes(BUILD[sel].cat)?'':`Facing ${DN[rot]} · `}Click${BUILD[sel].cat==='belt'?' and drag to draw a line':' to place, drag for a row'} · ${['pole','power'].includes(BUILD[sel].cat)?'':'<kbd>R</kbd> rotate · '}<kbd>Right-click</kbd> put down</span>`}
   else if(typeof objDone!=='undefined'&&objDone<8)h=`<span class="d"><kbd>1</kbd>–<kbd>8</kbd> pick a building · Click a building to inspect · Hold click on ore to mine · <kbd>H</kbd> help</span>`;
+  if(typeof overlay!=='undefined'&&overlay){const o=OVERLAYS[overlay];if(!sel&&!tool&&bpSel===null)h='';h+=`<span class="m" style="color:var(--blue)">${o} view</span><span class="d"><kbd>V</kbd> next</span>`}
   modeEl.innerHTML=h;modeEl.hidden=!h;cv.classList.toggle('tool',!!tool);
 }
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1590,31 +2012,54 @@ const OBJ=[
   {t:'Put a module in a machine',h:'Craft a Speed Module in an Assembler, then click any machine and slot it in.',ok:()=>ents.some(e=>e.mods&&e.mods.length)},
   {t:'Research Research IV',ok:()=>has('sci4')},
   {t:'Deliver 20 purple science',ok:()=>(delivered.sci_purple||0)>=20},
+  {t:'Send items to storage with an Uplink',h:'Research Remote Uplink, place one by a far outpost, power it, and belt anything into it. No long belt back to the Hub needed.',ok:()=>upSent>0},
   {t:'Store power in an Accumulator',h:'Accumulators charge only from spare wind and solar. Build extra solar so they fill during the day.',ok:()=>power.stored>100},
   {t:'Research Research V',ok:()=>has('sci5')},
   {t:'Deliver 20 yellow science',ok:()=>(delivered.sci_yellow||0)>=20},
   {t:'Run a Nuclear Reactor',h:'Enrich uranium in a Refinery, make fuel rods, then belt them into a reactor.',ok:()=>(power.src.nuclear||0)>0},
   {t:'Research Research VI',ok:()=>has('sci6')},
   {t:'Research Rocketry',ok:()=>has('rocketry')},
-  {t:'Deliver 100 rocket parts and launch',ok:()=>has('launch')},
+  {t:'Launch the colony rocket to Cinder',h:'Research Colony Rocket: Cinder. It takes 100 rocket parts.',ok:()=>has('launch')},
+  {t:'Smelt tungsten on Cinder',pl:'cinder',h:'Switch to Cinder (top left). Research Tungsten, then drill tungsten ore and smelt it. Copper is scarce there, so spend the starter kit carefully.',ok:()=>(made.tungsten||0)>0},
+  {t:'Power Cinder with geothermal',pl:'cinder',h:'Build a Geothermal Plant on a glowing vent. It runs day and night with no fuel.',ok:()=>(power.src.geo||0)>0},
+  {t:'Make heat shields on Cinder',pl:'cinder',ok:()=>(made.heat_shield||0)>0},
+  {t:'Ship cargo to another planet',h:'Build a Cargo Silo, pick a destination, and fill it with a belt or Load from storage. Each launch needs 5 Rocket Fuel.',ok:()=>shipped>0},
+  {t:'Colonize Rime',h:'Research Colony Rocket: Rime.',ok:()=>has('colony_rime')},
+  {t:'Make helium-3 on Rime',pl:'rime',h:'Research Cryogenics. Drill helium ice and refine it in a Refinery.',ok:()=>(made.helium3||0)>0},
+  {t:'Make superconductors on Rime',pl:'rime',ok:()=>(made.superconductor||0)>0},
+  {t:'Run a Fusion Reactor',h:'Research Fusion Power, make fusion cells and belt them into a Fusion Reactor on any planet.',ok:()=>planets.some((p,i)=>((i===loadedP?power:p.power).src||{}).fusion>0)},
+  {t:'Colonize Verdant',h:'Research Colony Rocket: Verdant.',ok:()=>has('colony_verdant')},
+  {t:'Clear jungle growth on Verdant',pl:'verdant',h:'Use the Clear area tool (X) on growth. Each tile gives biomass.',ok:()=>(made.biomass||0)>0},
+  {t:'Make bio catalyst on Verdant',pl:'verdant',h:'Research Biotech. Refine biomass with sulfur.',ok:()=>(made.bio_catalyst||0)>0},
+  {t:'Research Research VII',h:'It needs heat shields, superconductors and bio catalyst. Research draws from every planet\'s storage.',ok:()=>has('sci7')},
+  {t:'Make cosmic science',h:'An Assembler set to Cosmic Science needs heat shields, superconductors and bio catalyst. Ship two of them to one planet with Cargo Silos.',ok:()=>planets.some((p,i)=>((i===loadedP?made:p.made).sci_cosmic||0)>0)},
+  {t:'Move items with cargo drones',h:'Research Cargo Drones. Place one Drone Port set to Send and another set to Receive on the same channel.',ok:()=>droneTrips>0},
+  {t:'Research Ark Construction',ok:()=>has('ark')},
+  {t:'Build the Ark hull',h:'Open the Ark screen (K) and start building. Hull segments come from Home storage.',ok:()=>ark.phase>=1},
+  {t:'Install the Ark reactor',ok:()=>ark.phase>=2},
+  {t:'Fit the Ark habitats',ok:()=>ark.phase>=3},
+  {t:'Install navigation and launch the Ark',ok:()=>ark.launched},
 ];
 let objDone=0;
+function goalOk(o){const i=o.pl?pIdx(o.pl):0;if(i<0)return false;return withPlanet(i,()=>!!o.ok())}
 function renderObjectives(){
   if(!inspEl.hidden){objEl.hidden=true;return}objEl.hidden=false;
-  let done=0;const open=[];let firstHint='';OBJ.forEach(o=>{if(o.ok())done++;else{if(!open.length)firstHint=o.h||(o.t.startsWith('Research')?'Press T. Queue it and its prerequisites line up for you.':o.t.startsWith('Deliver')?'Click an Assembler to see what it needs. Belt the finished packs into the Hub.':'');open.push(o.t)}});
-  if(done>objDone&&objDone>0){blip(880,0.12,'triangle',0.04);const fin=OBJ.filter(o=>o.ok()).map(o=>o.t);const last=fin[fin.length-1];if(last)toast('Goal complete: '+last.replace(/ \(.*?\)/g,''),true)}const objChanged=done!==objDone;objDone=done;if(objChanged)updateModebar();
+  const okNow=OBJ.map(goalOk);
+  let done=0;const open=[];let firstHint='';OBJ.forEach((o,oi)=>{if(okNow[oi])done++;else{if(!open.length)firstHint=o.h||(o.t.startsWith('Research')?'Press T. Queue it and its prerequisites line up for you.':o.t.startsWith('Deliver')?'Click an Assembler to see what it needs. Belt the finished packs into the Hub.':'');open.push(o.t)}});
+  if(done>objDone&&objDone>0){blip(880,0.12,'triangle',0.04);const fin=OBJ.filter((o,oi)=>okNow[oi]).map(o=>o.t);const last=fin[fin.length-1];if(last)toast('Goal complete: '+last.replace(/ \(.*?\)/g,''),true)}const objChanged=done!==objDone;objDone=done;if(objChanged)updateModebar();
   const al=[];
-  if(power.demand>0&&power.sat<0.98)al.push(['bad',`Power short: machines at ${Math.round(power.sat*100)}% speed`]);
-  const dry=ents.filter(e=>BUILD[e.type]&&BUILD[e.type].fuels&&!e.fq.length&&e.energy<=0).length;if(dry)al.push(['warn',`${dry} generator${dry>1?'s':''} out of fuel`]);
+  if(power.demand>0&&power.sat<0.98)al.push(['bad',`Power short: machines at ${Math.round(power.sat*100)}% speed`,'short']);
+  const dry=ents.filter(e=>BUILD[e.type]&&BUILD[e.type].fuels&&!e.fq.length&&e.energy<=0).length;if(dry)al.push(['warn',`${dry} generator${dry>1?'s':''} out of fuel`,'fuel']);
   if(power.storeCap&&power.stored/power.storeCap<0.1&&sun<0.3)al.push(['warn','Accumulators almost empty']);
-  if(power.loose)al.push(['purple',`${power.loose} machine${power.loose>1?'s':''} not connected to power`]);
-  if(power.short>1)al.push(['bad',`${power.short} power grids are short`]);
-  const unl=ents.filter(e=>e.type==='tunnel'&&!e.pair).length;if(unl)al.push(['warn',`${unl} tunnel${unl>1?'s':''} not linked`]);
-  if(!active&&TECH.some(t=>!t.rep&&techState(t)==='ready'))al.push(['warn','No research running. Press T']);
-  if(active){const m=techMissing(TECH_BY[active]),ks=Object.keys(m);if(ks.length)al.push(['warn',`Research waiting for ${ks.map(k=>m[k]+' '+N(k)).join(', ')}`])}
-  if(simSpeed===0)al.push(['blue','Paused. Press . to resume']);else if(simSpeed>1)al.push(['blue',`Running at ${simSpeed}× speed`]);
+  if(power.loose)al.push(['purple',`${power.loose} machine${power.loose>1?'s':''} not connected to power`,'loose']);
+  if(power.short>1)al.push(['bad',`${power.short} power grids are short`,'short']);
+  const unl=ents.filter(e=>e.type==='tunnel'&&!e.pair).length;if(unl)al.push(['warn',`${unl} tunnel${unl>1?'s':''} not linked`,'tunnel']);
+  if(ghosts.size)al.push(['blue',`${ghosts.size} planned building${ghosts.size>1?'s':''} waiting for materials`,'ghost']);
+  if(!active&&TECH.some(t=>!t.rep&&techState(t)==='ready'))al.push(['warn','No research running. Press T','tech']);
+  if(active){const m=techMissing(TECH_BY[active]),ks=Object.keys(m);if(ks.length)al.push(['warn',`Research waiting for ${ks.map(k=>m[k]+' '+N(k)).join(', ')}`,'tech'])}
+  if(simSpeed===0)al.push(['blue','Paused. Press . to resume','resume']);else if(simSpeed>1)al.push(['blue',`Running at ${simSpeed}× speed`]);
   if(al.length&&al[0][0]==='bad'&&performance.now()-lastPowerWarn>30000){lastPowerWarn=performance.now();blip(180,0.18,'sawtooth',0.03)}
-  objEl.innerHTML=`<div class="h">Goals <small>${done}/${OBJ.length}</small></div><ol>${open.slice(0,3).map((t,i)=>`<li class="${i?'':'first'}">${t}</li>${!i&&firstHint?`<div class="ohint">${firstHint}</div>`:''}`).join('')||'<li class="first">Every goal complete. Push the repeatable research.</li>'}</ol>${al.length?`<div class="alerts">${al.map(([c,m])=>`<div class="al ${c}">${m}</div>`).join('')}</div>`:''}`;
+  objEl.innerHTML=`<div class="h">Goals <small>${done}/${OBJ.length}</small></div><ol>${open.slice(0,3).map((t,i)=>`<li class="${i?'':'first'}">${t}</li>${!i&&firstHint?`<div class="ohint">${firstHint}</div>`:''}`).join('')||'<li class="first">Every goal complete. Push the repeatable research.</li>'}</ol>${al.length?`<div class="alerts">${al.map(([c,m,k])=>k?`<button class="al ${c} algo" data-act="alertgo" data-r="${k}" title="Click to jump there">${m}</button>`:`<div class="al ${c}">${m}</div>`).join('')}</div>`:''}`;
 }
 let lastPowerWarn=0;
 const ST_TXT={ok:'Working',idle:'Waiting for input',block:'Output blocked',nopower:'No power',nopole:'Not connected',norecipe:'Needs setup'};
@@ -1654,7 +2099,9 @@ function renderHover(){
       if(e.recipe)line+=`<div class="hw">${img(e.recipe,14)} Making ${N(e.recipe)}</div>`;
       else if(e.rin&&b.cat==='smelter')line+=`<div class="hw">${img(e.rin,14)} Smelting ${N(e.rin)}</div>`;
       h=`<div class="ht">${b.name}</div>${line}${w&&e.st!=='ok'?`<div class="hw">${w}</div>`:''}<div class="hk">Click for details · R rotate · Del remove</div>`}
-  }else if(o){h=`<div class="ht">${ORE_NAME[o]}</div><div class="hw">${o===6?'Needs a Pumpjack (unlocked by Oil Processing).':'Hold click to mine by hand, or place a Mining Drill on it.'}</div>`}
+  }else if(ghosts.has(idx(tx,ty))){const g=ghosts.get(idx(tx,ty)),b=BUILD[g.type],need=Object.keys(b.cost).filter(k=>(inv[k]||0)<b.cost[k]);h=`<div class="ht">Planned ${b.name}</div><div class="hw">${need.length?'Waiting for '+need.map(k=>`${b.cost[k]-(inv[k]||0)} more ${N(k)}`).join(', '):'Building shortly'}</div><div class="hk">Del cancels the plan</div>`}
+  else if(isBlocked(tx,ty)){const t3=terr[idx(tx,ty)]===3;h=`<div class="ht">${terrName(tx,ty)}</div><div class="hw">${t3?'Clear it with the Clear area tool (X) to build here. Clearing gives biomass.':'Nothing can be built here. Belt Tunnels can pass under, and power wires cross over.'}</div>`}
+  else if(o){const rc=rich&&rich[idx(tx,ty)];h=`<div class="ht">${rc?'Rich ':''}${ORE_NAME[o]}</div><div class="hw">${o===6?'Needs a Pumpjack (unlocked by Oil Processing).':ORE_HINT[o]||'Hold click to mine by hand, or place a Mining Drill on it.'}</div>${rc?'<div class="hw" style="color:var(--warn)">Rich ore: a drill here mines 2× as fast.</div>':''}`}
   if(!h){hoverEl.hidden=true;return}
   hoverEl.innerHTML=h;hoverEl.hidden=false;
   const r=hoverEl.getBoundingClientRect();let x=mouse.x+18,y=mouse.y+20;
@@ -1667,7 +2114,7 @@ const CATS=[['Raw resources',['iron_ore','copper_ore','coal','stone','quartz','c
   ['Parts',['gear','wire','circuit','beam','concrete','motor','plastic','sulfur','solid_fuel','battery','adv_circuit']],
   ['Advanced',['processor','frame','lds','rocket_fuel','uranium','fuel_rod','speed_module','speed_module2','prod_module','prod_module2']],
   ['Science',['sci_red','sci_green','sci_blue','sci_purple','sci_yellow','sci_white','rocket_part']]];
-const SRC_NAME={hand:'Hand mining',craft:'Hand crafting',research:'Research',build:'Construction',other:'Other'};
+const SRC_NAME={hand:'Hand mining',craft:'Hand crafting',research:'Research',build:'Construction',other:'Other',import:'Cargo from other planets',export:'Shipped to other planets',clear:'Clearing growth',silo:'Silo launches',ark:'The Ark'};
 const srcName=k=>SRC_NAME[k]||(BUILD[k]?BUILD[k].name:k);
 let prodWin=1,prodFilter='active',prodSel=null,prodFind={};
 const fmtR=v=>{const a=Math.abs(v);return a>=100?v.toFixed(0):a>=10?v.toFixed(1):v.toFixed(1)};
@@ -1696,7 +2143,7 @@ function prodTotals(){
 function prodMachines(){
   const P={},C={};const add=(map,id,type,cap,e,starve)=>{const o=(map[id]||(map[id]={}))[type]||(map[id][type]={n:0,working:0,cap:0,starve:0,stalled:[]});o.n++;o.cap+=cap;if(e.st==='ok')o.working++;else o.stalled.push(e);if(starve)o.starve++};
   for(const e of ents){const b=BUILD[e.type];if(!b)continue;const sp=1+(e.ms?e.ms.spd:0),pr=1+(e.ms?e.ms.prod:0);
-    if(b.cat==='miner'){const o=ore[idx(e.x,e.y)];if(o&&b.ores.includes(o))add(P,ORE_ITEM[o],e.type,60*b.rate*minerMult()*sp*(pr+lv('rep_mine')*.1),e)}
+    if(b.cat==='miner'){const o=ore[idx(e.x,e.y)];if(o&&b.ores.includes(o))add(P,ORE_ITEM[o],e.type,60*b.rate*minerMult()*sp*(pr+lv('rep_mine')*.1)*(rich&&rich[idx(e.x,e.y)]?2:1),e)}
     else if(b.cat==='smelter'&&e.rin&&SMELT[e.rin]){const r=SMELT[e.rin],c=60*b.spd*smeltMult()*sp/r.t;add(P,r.out,e.type,c*pr,e);add(C,e.rin,e.type,c*r.n,e,e.st==='idle')}
     else if(b.cat==='crafter'&&e.recipe){const r=RECIPES[e.recipe],c=60*b.spd*asmMult()*sp/r.t;add(P,e.recipe,e.type,c*r.out*pr,e);
       for(const k in r.in)add(C,k,e.type,c*r.in[k],e,e.st==='idle'&&(e.inb[k]||0)<r.in[k])}
@@ -1789,7 +2236,7 @@ function prodOverview(){
   const counts={};ents.forEach(e=>{if(e.type!=='hub')counts[e.type]=(counts[e.type]||0)+1});
   return`<div class="lbl" style="margin-bottom:8px">Pick an item on the left to see what makes and uses it.</div>
     <div class="sec" style="margin-top:6px"><div class="lbl">Power right now</div><div class="kv"><span>Use / available</span><b>${fmtW(power.demand)} / ${fmtW(power.supply)}</b></div>
-    ${row('Coal & fuel',s2.coal,'#e05a3a')}${row('Wind',s2.wind,'#e8ecef')}${row('Solar',s2.solar,'#f2d23b')}${row('Nuclear',s2.nuclear,'#5fd35a')}${row('Accumulators',s2.battery,'#5aa9f0')}${row('Charging',s2.charging,'#5aa9f0')}</div>
+    ${row('Coal & fuel',s2.coal,'#e05a3a')}${row('Wind',s2.wind,'#e8ecef')}${row('Solar',s2.solar,'#f2d23b')}${row('Nuclear',s2.nuclear,'#5fd35a')}${s2.geo?row('Geothermal',s2.geo,'#ff7a2a'):''}${s2.fusion?row('Fusion',s2.fusion,'#ff7ad8'):''}${row('Accumulators',s2.battery,'#5aa9f0')}${row('Charging',s2.charging,'#5aa9f0')}</div>
     <div class="sec"><div class="lbl">Buildings</div>${Object.keys(counts).sort((a,b)=>counts[b]-counts[a]).map(t=>`<div class="kv"><span>${BUILD[t].name}</span><b>${counts[t]}</b></div>`).join('')||'<p class="pr-note">None yet.</p>'}<div class="kv"><span>Time played</span><b>${fmtTime(playTime)}</b></div></div>`;
 }
 function prodFindStalled(id){
@@ -1804,7 +2251,7 @@ const fmtT=t=>t>=10?t.toFixed(0)+'s':t>=1?(+t.toFixed(2))+'s':(+t.toFixed(2))+'s
 const an=w=>(/^[AEIOU]/i.test(w)?'an ':'a ')+w;
 const fmtPM=v=>v>=100?v.toFixed(0):v>=10?(+v.toFixed(1)).toString():(+v.toFixed(2)).toString();
 function itemTech(id){
-  if(id==='crude_oil')return'oil';if(isOre(id))return null;
+  if(id==='crude_oil')return'oil';const PO={tungsten_ore:'launch',helium_ice:'colony_rime',cryo_crystal:'colony_rime',biomass:'colony_verdant'};if(PO[id])return PO[id];if(isOre(id))return null;
   const sk=smeltFor(id);if(sk)return SMELT[sk].tech||null;
   return RECIPES[id]?RECIPES[id].tech||null:null;
 }
@@ -1932,7 +2379,7 @@ function renderStats(){
   const srcRow=(n,v,col)=>v>0.01?`<div class="kv"><span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${col};margin-right:6px"></span>${n}</span><b>${fmtW(v)}</b></div>`:'';
   setHTML(statsEl,`<div class="h">Production <small>last ${buckets.length}s</small></div>
   ${ids.length?`<table class="st" style="margin-top:10px"><tr><th>Item</th><th>Made/min</th><th>To hub</th><th></th></tr>${ids.map(r=>`<tr><td>${img(r.k,20)}${N(r.k)}</td><td class="n">${r.m.toFixed(r.m<10?1:0)}</td><td class="n">${r.d.toFixed(r.d<10?1:0)}</td><td>${spark60(r.k)}</td></tr>`).join('')}</table>`:'<p style="color:var(--dim)">Nothing is being produced yet. Place a drill on ore.</p>'}
-  <div class="sec"><div class="lbl">Power right now</div>${srcRow('Coal & fuel',s.coal,'#e05a3a')}${srcRow('Wind',s.wind,'#e8ecef')}${srcRow('Solar',s.solar,'#f2d23b')}${srcRow('Nuclear',s.nuclear,'#5fd35a')}${srcRow('Accumulators',s.battery,'#5aa9f0')}${srcRow('Charging accumulators',s.charging,'#5aa9f0')}
+  <div class="sec"><div class="lbl">Power right now</div>${srcRow('Coal & fuel',s.coal,'#e05a3a')}${srcRow('Wind',s.wind,'#e8ecef')}${srcRow('Solar',s.solar,'#f2d23b')}${srcRow('Nuclear',s.nuclear,'#5fd35a')}${s.geo?srcRow('Geothermal',s.geo,'#ff7a2a'):''}${s.fusion?srcRow('Fusion',s.fusion,'#ff7ad8'):''}${srcRow('Accumulators',s.battery,'#5aa9f0')}${srcRow('Charging accumulators',s.charging,'#5aa9f0')}
    <div class="kv"><span>Demand</span><b>${fmtW(power.demand)}</b></div>${power.storeCap?`<div class="kv"><span>Stored</span><b>${fmt(power.stored*30/1000)} / ${fmt(power.storeCap*30/1000)} MJ</b></div>`:''}</div>
   <div class="sec"><div class="lbl">Factory</div>${Object.keys(counts).map(t=>`<div class="kv"><span>${BUILD[t].name}</span><b>${counts[t]}</b></div>`).join('')}<div class="kv"><span>Time played</span><b>${fmtTime(playTime)}</b></div></div>`);
 }
@@ -1996,8 +2443,28 @@ function renderInspector(){
     if(e.type==='chest'){const c={};e.buf.forEach(k=>c[k]=(c[k]||0)+1);h+=`<div class="sec"><div class="kv"><span>Stored</span><b>${e.buf.length} / 400</b></div>${Object.keys(c).map(k=>`<div class="kv"><span>${img(k,16)} ${N(k)}</span><b>${c[k]}</b></div>`).join('')}<div class="row"><button class="btn" data-act="take" ${e.buf.length?'':'disabled'}>Move all to inventory</button></div></div>`}
     if(e.type==='tunnel'){h+=e.pair?`<div class="sec"><div class="kv"><span>Role</span><b>${e.role==='in'?'Entrance':'Exit'}</b></div><div class="kv"><span>Linked to</span><b>${e.pair.x}, ${e.pair.y}</b></div><div class="kv"><span>Tiles under</span><b>${Math.abs(e.pair.x-e.x)+Math.abs(e.pair.y-e.y)-1}</b></div>${e.role==='in'?`<div class="kv"><span>Items inside</span><b>${e.tq.length}</b></div>`:''}</div>`
       :`<p style="color:var(--warn);font-size:13px">Not linked. Place a second tunnel facing the same way within ${TUN_RANGE} tiles ahead.</p>`}
+    if(e.type==='dport'){const x=dportX(e),peers=ents.filter(o=>o.type==='dport'&&o!==e&&dportX(o).ch===x.ch&&dportX(o).role!==x.role).length;
+      h+=`<div class="sec"><div class="lbl">Role</div><div class="seg"><button class="btn sm ${x.role==='send'?'on':''}" data-act="dprole" data-r="send">Send</button><button class="btn sm ${x.role==='recv'?'on':''}" data-act="dprole" data-r="recv">Receive</button></div>
+        <div class="lbl" style="margin-top:10px">Channel</div><div class="seg">${[1,2,3,4,5,6,7,8].map(c=>`<button class="btn sm ${x.ch===c?'on':''}" data-act="dpch" data-i="${c}">${c}</button>`).join('')}</div>
+        <div class="kv" style="margin-top:8px"><span>${x.role==='send'?'Waiting to fly':'Waiting to go out'}</span><b data-live>${e.buf.length}</b></div>
+        ${x.role==='send'?`<div class="kv"><span>Drones out</span><b data-live>${x.out} / ${DRONE_N}</b></div>`:`<div class="kv"><span>On the way in</span><b data-live>${x.inc}</b></div>`}
+        <div class="kv"><span>${x.role==='send'?'Receivers':'Senders'} on channel ${x.ch}</span><b data-live>${peers}</b></div>
+        <p style="color:var(--dim);font-size:12px;margin:8px 0 0">${x.role==='send'?`Belt items in from any side. Drones carry ${DRONE_LOAD} at a time to the nearest receiver on the same channel with room.`:'Items arrive by drone and leave through the front, where the orange arrow points.'}</p></div>`}
+    if(e.type==='silo'){const x=siloX(e),others=planets.map((p,i)=>i).filter(i=>i!==loadedP);
+      const known=Object.keys(ITEMS).filter(k=>(inv[k]||0)>0||(delivered[k]||0)>0||x.flt.includes(k)||x.cargo[k]);
+      const st=x.anim>0?'Launching':x.dest==null||!planets[x.dest]?(others.length?'Pick a destination':'No other planet yet'):x.n>=SILO_CAP||x.go?(siloFuelHave(x)<SILO_FUEL?`Waiting for ${SILO_FUEL} Rocket Fuel`:`Charging ${Math.round(x.charge/SILO_CHARGE*100)}%`):`Loading. Launches at ${SILO_CAP} items`;
+      h+=`<div class="sec"><div class="lbl">Destination</div>${others.length?`<div class="seg">${others.map(i=>`<button class="btn sm ${x.dest===i?'on':''}" data-act="silodest" data-i="${i}">${planets[i].name}</button>`).join('')}</div>`:'<p style="color:var(--dim);font-size:12px;margin:0">Colonize another planet first.</p>'}
+        <div class="kv" style="margin-top:8px"><span>Status</span><b data-live>${st}</b></div>
+        <div class="kv"><span>Cargo</span><b data-live>${x.n} / ${SILO_CAP}</b></div><div class="bar"><i data-lw style="width:${x.n/SILO_CAP*100}%;background:var(--amber)"></i></div>
+        ${Object.keys(x.cargo).filter(k=>x.cargo[k]>0).map(k=>`<div class="kv"><span>${img(k,16)} ${N(k)}</span><b data-live>${x.cargo[k]}</b></div>`).join('')}
+        <div class="kv"><span>${img('rocket_fuel',16)} Fuel tank</span><b data-live>${x.fuel} / ${SILO_TANK}</b></div><div class="kv"><span>Rocket Fuel in storage</span><b data-live>${fmt(inv.rocket_fuel||0)}</b></div>
+        <div class="row"><button class="btn pri" data-act="silogo" ${x.n>0&&x.dest!=null&&planets[x.dest]&&!x.anim?'':'disabled'}>Launch now</button><button class="btn" data-act="siloload" ${x.n<SILO_CAP?'':'disabled'}>Load from storage</button></div>
+        <p style="color:var(--dim);font-size:12px;margin:8px 0 0">Each launch burns ${SILO_FUEL} Rocket Fuel, from the tank first, then this planet's storage. Belted Rocket Fuel fills the tank. Rockets land in the destination's storage after ${FLIGHT_T}s.</p></div>
+        <div class="sec"><div class="lbl">Ship only these (up to 4) <small style="color:var(--dim)">${x.flt.length?'':'· now: any item'}</small></div><div class="pick">${known.map(k=>`<button data-act="siloflt" data-r="${k}" class="${x.flt.includes(k)?'on':''}" data-item="${k}">${img(k,24)}</button>`).join('')}</div></div>`}
+    if(e.type==='uplink')h+=`<div class="sec"><div class="kv"><span>Sends to storage</span><b>up to ${UPLINK_RATE*60}/min</b></div><div class="kv"><span>Waiting to send</span><b>${e.buf.length} / 8</b></div><div class="kv"><span>Sent since loading</span><b>${fmt(e.sent||0)}</b></div><p style="color:var(--dim);font-size:12px;margin:8px 0 0">Accepts any item from belts on any side. Without power it stops and belts back up.</p></div>`;
     if(e.type==='depot'){const known=Object.keys(ITEMS).filter(k=>(inv[k]||0)>0||(delivered[k]||0)>0);
       h+=`<div class="sec"><div class="lbl">Send out</div><div class="pick">${known.map(k=>`<button data-act="filter" data-r="${k}" class="${e.filter===k?'on':''}" data-item="${k}">${img(k,24)}</button>`).join('')}</div>${e.filter?`<div class="kv" style="margin-top:8px"><span>${img(e.filter,16)} In inventory</span><b>${fmt(inv[e.filter]||0)}</b></div>`:''}<p style="color:var(--dim);font-size:12px;margin:8px 0 0">Use it to supply far-off builds, or feed a generator straight from stock. It won't output into the Hub.</p></div>`}
+    if(e.type==='psplit')h+=`<div class="sec"><div class="lbl">Priority exit</div><div class="seg">${[['left','Left'],['front','Front'],['right','Right']].map(([v,l])=>`<button class="btn sm ${(e.prio||'front')===v?'on':''}" data-act="prio" data-r="${v}">${l}</button>`).join('')}</div><p style="color:var(--dim);font-size:12px;margin:8px 0 0">Items go out the green exit first. They overflow to the others only when it backs up. Left and right are relative to the orange arrow.</p></div>`;
     if(e.type==='splitter')h+=`<p style="color:var(--dim);font-size:13px">Items arriving from any side leave through the left, front and right exits in turn. A blocked exit is skipped.</p>`;
     if(isBelt(e.type))h+=`<div class="sec"><div class="kv"><span>Throughput</span><b>${(beltSpd(e.type)*4*60).toFixed(0)}/min</b></div><div class="kv"><span>Carrying</span><b>${e.items.length}</b></div></div>`;
     if(b.next){const nb=BUILD[b.next];h+=`<div class="sec"><div class="lbl">Upgrade to ${nb.name}</div>${unlockedB(b.next)?`${costHTML(nb.cost)}<p style="color:var(--dim);font-size:12px;margin:6px 0 0">The old building's cost is refunded.</p><div class="row"><button class="btn pri" data-act="upg" ${canAfford(nb.cost)?'':'disabled'}>Upgrade</button></div>`:`<span style="color:var(--dim);font-size:13px">Research ${TECH_BY[nb.tech].name} first.</span>`}</div>`}
@@ -2031,7 +2498,7 @@ function renderTech(){
   <div class="tree">${Object.keys(tiers).map(k=>`<div class="tier"><div class="lbl">TIER ${k}</div>${tiers[k].map(t=>{const s=techState(t),c=costOf(t);
     const label=s==='done'?'Done':s==='active'?`<span data-live>${Math.floor(researchFrac()*100)}%</span>`:s==='ready'?(t.rep?`Level ${lv(t.id)+1}`:'Ready'):'Locked';
     return`<div class="tech ${s}"><div class="nm">${t.name}<small>${label}</small></div><p>${t.desc}</p>
-    ${s==='done'?'':`<div class="costs">${Object.keys(c).map(i=>{const p=s==='active'?(paid[i]||0):0;const hv=(inv[i]||0)+p;return`<span class="cost ${hv>=c[i]?'ok':'no'}" data-item="${i}">${img(i,16)}${s==='active'?`<span data-live>${fmt(p)}</span>/`:''}${fmt(c[i])}</span>`}).join('')}</div>`}
+    ${s==='done'?'':`<div class="costs">${Object.keys(c).map(i=>{const p=s==='active'?(paid[i]||0):0;const hv=totalInv(i)+p;return`<span class="cost ${hv>=c[i]?'ok':'no'}" data-item="${i}">${img(i,16)}${s==='active'?`<span data-live>${fmt(p)}</span>/`:''}${fmt(c[i])}</span>`}).join('')}</div>`}
     ${s==='locked'?`<div class="req">Needs ${t.req.filter(r=>!has(r)).map(r=>TECH_BY[r].name).join(', ')}</div>`:''}
     ${(s==='ready'||s==='active')?(()=>{const m=techMissing(t),ks=Object.keys(m);if(!ks.length)return'';const hc=ks.some(k=>HANDCRAFT.includes(k)&&unlockedR(k));
       return`<div class="req" style="color:var(--warn)">${s==='active'?'Waiting for':'You still need'} ${ks.map(k=>`<span data-live>${m[k]}</span> ${N(k)}`).join(', ')}. ${howToGet(ks[0])}</div>${hc?`<button class="btn sm" data-act="craftmiss" data-r="${t.id}">Hand craft missing</button>`:''}`})():''}
@@ -2044,20 +2511,66 @@ function renderTech(){
 }
 let resetArm=false,saveIO=null;
 function openHelp(){if(!modalEl.hidden&&modalEl.dataset.kind==='help'){closeModal();return}resetArm=false;saveIO=null;openModal('help',helpHTML())}
-function helpHTML(){return`<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><h2>Foundry Line</h2><p class="sub">Mine ore, smelt it, assemble parts, and belt everything into the Hub. Six tiers of science take you from iron plates through oil, modules and nuclear power to a rocket launch. After that, repeatable research keeps going.</p></div><button class="btn pri" data-act="closem">Start building</button></div>
+function helpHTML(){return`<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><h2>Foundry Line</h2><p class="sub">Mine ore, smelt it, assemble parts, and belt everything into the Hub. Six tiers of science take you from iron plates through oil, modules and nuclear power to a colony rocket. Then you settle three more worlds, each a fresh map with its own storage, ship goods between them, and build the Ark to win.</p></div><button class="btn pri" data-act="closem">Start building</button></div>
   <div class="cols">
-   <div><h3>Build</h3><dl><dt>1 – 8</dt><dd>Pick a building group. Press again to cycle tiers</dd><dt>Left click</dt><dd>Place. Drag to lay belts and rows</dd><dt>R</dt><dd>Rotate the building under your cursor. Over empty ground it turns the one you're placing. Shift+R turns the other way</dd><dt>Right-click</dt><dd>Put down whatever you're holding and close panels</dd><dt>Del</dt><dd>Remove the building under your cursor, full refund. Ctrl + right-drag removes a line</dd><dt>Ctrl+Z</dt><dd>Undo placing, removing, pasting or upgrading</dd><dt>Q</dt><dd>Copy hovered building with its recipe and modules</dd><dt>F</dt><dd>Add fuel to hovered generator or reactor</dd></dl></div>
+   <div><h3>Build</h3><dl><dt>1 – 8</dt><dd>Pick a building group. Press again to cycle tiers</dd><dt>Left click</dt><dd>Place. Drag to lay belts and rows</dd><dt>R</dt><dd>Rotate the building under your cursor. Over empty ground it turns the one you're placing. Shift+R turns the other way</dd><dt>Right-click</dt><dd>Put down whatever you're holding and close panels</dd><dt>Del</dt><dd>Remove the building under your cursor, full refund. Ctrl + right-drag removes a line</dd><dt>Ctrl+Z</dt><dd>Undo placing, removing, pasting or upgrading</dd><dt>Short on materials?</dt><dd>Place it anyway. It becomes a blue plan that builds itself as soon as storage can pay</dd><dt>Q</dt><dd>Copy hovered building with its recipe and modules</dd><dt>F</dt><dd>Add fuel to hovered generator or reactor</dd><dt>V</dt><dd>Map overlay: power, machine status, resources, off</dd></dl></div>
    <div><h3>Blueprints</h3><dl><dt>C</dt><dd>Copy area: drag a box to save a blueprint</dd><dt>Click</dt><dd>Paste it. R rotates the whole thing</dd><dt>B</dt><dd>Library: paste, rename, export, import</dd><dt>U</dt><dd>Upgrade area: every building in the box goes up a tier</dd><dt>X</dt><dd>Clear area. Shift + right-drag does it too</dd><dt>Ctrl+C / V</dt><dd>Copy area / paste last blueprint</dd></dl></div>
-   <div><h3>Move & panels</h3><dl><dt>WASD</dt><dd>Pan the map. Drag empty ground too</dd><dt>Space + drag</dt><dd>Pan while building</dd><dt>Scroll</dt><dd>Zoom</dd><dt>Click building</dt><dd>Recipe, modules, fuel, upgrade</dd><dt>T / I / P</dt><dd>Research, inventory, production screen</dd><dt>G</dt><dd>Recipe book: how every item is made, and machine ratios</dd><dt>, and .</dt><dd>Slow down or speed up: pause, 1×, 2×, 4×</dd><dt>M</dt><dd>Sound on or off</dd></dl></div>
-   <div><h3>Logistics</h3><p>Belt Tunnels come in pairs: place one, then another facing the same way up to 6 tiles ahead. Items travel under anything in between, so belts can cross.</p><p>A Supply Depot pulls a chosen item out of your inventory onto a belt. Use it to feed distant builds or top up generators from stock.</p><p>In the research tree you can queue locked tech. Its prerequisites queue up for you.</p></div>
+   <div><h3>Move & panels</h3><dl><dt>WASD</dt><dd>Pan the map. Drag empty ground too</dd><dt>Space + drag</dt><dd>Pan while building</dd><dt>Scroll</dt><dd>Zoom</dd><dt>Click building</dt><dd>Recipe, modules, fuel, upgrade</dd><dt>T / I / P</dt><dd>Research, inventory, production screen</dd><dt>G</dt><dd>Recipe book: how every item is made, and machine ratios</dd><dt>, and .</dt><dd>Slow down or speed up: pause, 1×, 2×, 4×</dd><dt>M</dt><dd>Sound on or off</dd><dt>[ and ]</dt><dd>Switch planet (after the first colony)</dd><dt>O / K</dt><dd>Trade routes / the Ark</dd></dl></div>
+   <div><h3>Logistics</h3><p>Belt Tunnels come in pairs: place one, then another facing the same way up to 6 tiles ahead. Items travel under anything in between, so belts can cross.</p><p>A Supply Depot pulls a chosen item out of your inventory onto a belt. Use it to feed distant builds or top up generators from stock.</p><p>In the research tree you can queue locked tech. Its prerequisites queue up for you.</p><p>Priority Splitters send everything out one exit until it backs up. Uplinks send belted items straight to storage. Cargo Silos fly 400 items to another planet; Drone Ports fly items around one planet.</p></div>
    <div><h3>Power</h3><p>Machines need to sit inside a powered area. Generators, solar, wind and the Hub power the tiles right around them. Power Poles (key 7) carry it further and link up by wire automatically. While you hold a building, blue tiles show where power reaches.</p><p>Linked poles form one grid. If a grid's demand outruns its supply, everything on it slows together.</p><p>Coal generators burn only what's needed. Wind drifts. Solar follows a ten-minute day and dies at night, so pair it with Accumulators. Nuclear reactors are huge but need fuel rods.</p><p>Status lights: green working, yellow waiting, red blocked, blue no power. Hover any building to see what it needs.</p></div>
   </div>
   ${saveIO==='out'?`<div class="sec"><div class="lbl">Save text</div><textarea class="ta" id="saveOut" readonly style="height:90px">FLS2:${btoa(unescape(encodeURIComponent(serialize())))}</textarea><div class="row"><button class="btn pri sm" data-act="savecopy">Copy</button><button class="btn sm" data-act="saveclose">Done</button></div></div>`:''}
   ${saveIO==='in'?`<div class="sec"><div class="lbl">Load a save</div><textarea class="ta" id="saveIn" placeholder="Paste save text starting with FLS2:" style="height:90px"></textarea><p style="color:var(--warn);font-size:12px;margin:6px 0 0">This replaces the factory you have open now.</p><div class="row"><button class="btn pri sm" data-act="saveload">Load it</button><button class="btn sm" data-act="saveclose">Cancel</button></div></div>`:''}
   <div class="sec" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="color:var(--dim);font-size:13px">Your factory saves in this browser every 20 seconds. Export a copy to keep it safe or move it to another computer.</span><button class="btn" data-act="saveout">Export save</button><button class="btn" data-act="savein">Import save</button>${resetArm?`<button class="btn danger" data-act="resetYes">Erase factory and start over</button><button class="btn" data-act="resetNo">Keep it</button>`:`<button class="btn" data-act="reset">New world</button>`}</div>`}
+function planetIssues(i){const pw=i===loadedP?power:planets[i].power;return!!(pw&&((pw.short||0)>0||(pw.loose||0)>0||(pw.demand>0&&pw.sat<0.98)))}
+function renderPBar(){
+  const el=$('pbar'),tb=$('tradeBtn');if(!el)return;const show=planets.length>1;el.hidden=!show;if(tb)tb.hidden=!show;if(!show)return;
+  setHTML(el,planets.map((p,i)=>`<button class="btn sm ${i===curP?'on':''}" data-act="planet" data-i="${i}" title="${esc(PTYPES[p.type].blurb||'Your home world.')}"><i class="pd" style="background:${PTYPES[p.type].col||'#f2a93b'}"></i>${p.name}${i!==curP&&planetIssues(i)?'<i class="pw" title="Power problem"></i>':''}</button>`).join('')+`<span style="align-self:center;color:var(--dim);font-size:11px;padding:0 4px"><kbd>[</kbd> <kbd>]</kbd></span>`);
+}
+function siloList(){const out=[];planets.forEach((p,i)=>{const es=i===loadedP?ents:p.ents;for(const e of es)if(e.type==='silo')out.push({p:i,e})});return out}
+function openTrade(){openModal('trade','');renderTrade()}
+function renderTrade(){
+  if(modalEl.hidden||modalEl.dataset.kind!=='trade')return;
+  const sl=siloList(),pn=i=>planets[i]?planets[i].name:'?';
+  const recent={};for(const l of tradeLog){if(playTime-l.t>3600)continue;const k=l.from+'>'+l.to;const r=recent[k]||(recent[k]={n:0,runs:0,items:{}});r.n+=l.n;r.runs++;for(const id in l.items)r.items[id]=(r.items[id]||0)+l.items[id]}
+  const top=m=>Object.keys(m).sort((a,b)=>m[b]-m[a]).slice(0,5).map(k=>`<span style="display:inline-flex;align-items:center;gap:3px;margin-right:8px">${img(k,16)}${fmt(m[k])}</span>`).join('');
+  const siloRow=({p,e})=>{const x=siloX(e),st=x.anim>0?'Launching':x.dest==null||!planets[x.dest]?'No destination':x.n>=SILO_CAP||x.go?(x.fuel+((p===loadedP?inv:planets[p].inv).rocket_fuel||0)<SILO_FUEL?'Needs rocket fuel':e.st==='nopower'||e.st==='nopole'?ST_TXT[e.st]:'Charging'):'Loading';
+    return`<div class="tr-row"><b style="color:${PTYPES[planets[p].type].col}">${pn(p)}</b> <span style="color:var(--dim)">${e.x}, ${e.y}</span> → <b>${x.dest!=null&&planets[x.dest]?pn(x.dest):'none'}</b>
+      <span>${x.flt.length?x.flt.map(k=>img(k,16)).join(''):'<small style="color:var(--dim)">any item</small>'}</span>
+      <span class="bar" style="width:90px;display:inline-block;vertical-align:middle"><i data-lw style="width:${x.n/SILO_CAP*100}%;background:var(--amber)"></i></span> <b data-live>${x.n}</b><small>/${SILO_CAP}</small>
+      <small style="color:var(--dim)">fuel <b data-live>${x.fuel}</b></small> <small data-live>${st}</small>
+      <button class="btn sm" data-act="tradego" data-i="${p}" data-r="${e.x},${e.y}">Show</button></div>`};
+  const fl=flights.map(f=>{const n=Object.values(f.items).reduce((a,b)=>a+b,0);return`<div class="tr-row"><b>${pn(f.from)}</b> → <b>${pn(f.to)}</b> <span>${top(f.items)}</span> <span class="bar" style="width:110px;display:inline-block;vertical-align:middle"><i data-lw style="width:${f.t/f.dur*100}%;background:var(--blue)"></i></span> <small>${n} items · lands in <b data-live>${Math.max(0,Math.ceil(f.dur-f.t))}</b>s</small></div>`}).join('');
+  const rt=Object.keys(recent).map(k=>{const[a,b]=k.split('>').map(Number),r=recent[k];return`<div class="tr-row"><b>${pn(a)}</b> → <b>${pn(b)}</b> <small style="color:var(--dim)">${r.runs} rocket${r.runs>1?'s':''}, ${fmt(r.n)} items</small> <span>${top(r.items)}</span></div>`}).join('');
+  const h=`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px"><div><h2>Trade routes</h2><p class="sub">Cargo Silos on every planet. Each rocket carries up to ${SILO_CAP} items, burns ${SILO_FUEL} Rocket Fuel, and lands in the destination's storage ${FLIGHT_T} seconds later.</p></div><button class="btn" data-act="closem">Close <kbd>Esc</kbd></button></div>
+  <div class="sec"><div class="lbl">Silos</div>${sl.map(siloRow).join('')||'<p style="color:var(--dim)">No Cargo Silos yet. Find it in group 2 of the build bar.</p>'}</div>
+  <div class="sec"><div class="lbl">In flight</div>${fl||'<p style="color:var(--dim)">Nothing in the air.</p>'}</div>
+  <div class="sec"><div class="lbl">Shipped in the last hour</div>${rt||'<p style="color:var(--dim)">No deliveries yet.</p>'}</div>`;
+  setLive(sheetEl,liveMark(h));
+}
+function openArk(){if(!has('ark')){toast('Research Ark Construction first.');return}openModal('ark','');renderArk()}
+function renderArk(){
+  if(modalEl.hidden||modalEl.dataset.kind!=='ark')return;
+  const homeInv=invOf(0);
+  const ph=ARK.map((a,k)=>{const done=k<ark.phase,cur=k===ark.phase;return`<div class="sec" style="${cur?'border-color:var(--amber)':''}"><div class="lbl">Phase ${k+1}: ${a.name} ${done?'<span style="color:var(--good)">· done</span>':cur?'<span style="color:var(--amber)">· now</span>':''}</div>
+    ${Object.keys(a.need).map(q=>{const paid=done?a.need[q]:cur?(ark.paid[q]||0):0;return`<div class="kv"><span>${img(q,18)} ${N(q)} <small style="color:var(--dim)">(Home storage: <span data-live>${fmt(homeInv[q]||0)}</span>)</small></span><b data-live>${paid} / ${a.need[q]}</b></div><div class="bar"><i data-lw style="width:${paid/a.need[q]*100}%;background:${done?'var(--good)':'var(--amber)'}"></i></div>`}).join('')}
+    ${cur?`<p style="color:var(--dim);font-size:12px;margin:6px 0 0">Make it with an Assembler set to ${Object.keys(a.need).map(N).join(', ')}. ${RECIPES[Object.keys(a.need)[0]]?'Needs '+Object.keys(RECIPES[Object.keys(a.need)[0]].in).map(N).join(', ')+'.':''}</p>`:''}</div>`}).join('');
+  const ready=ark.phase>=ARK.length;
+  setLive(sheetEl,liveMark(`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px"><div><h2>The Ark</h2><p class="sub">A colony ship built in orbit above Home, from parts made on all four worlds. While building is on, it draws parts from Home's storage. Ship colony goods home with Cargo Silos.</p></div><button class="btn" data-act="closem">Close <kbd>Esc</kbd></button></div>
+  ${ph}
+  <div class="row">${ready?(ark.launched?'<b style="color:var(--good)">The Ark has launched.</b>':'<button class="btn pri" data-act="arklaunch">Launch the Ark</button>'):`<button class="btn ${ark.on?'':'pri'}" data-act="arkon">${ark.on?'Pause building':'Start building'}</button><span style="color:var(--dim);font-size:13px;align-self:center">${ark.on?'Taking parts from Home storage as they arrive.':'Paused. Parts stay in storage.'}</span>`}</div>`));
+}
+function showColony(type){
+  const d=PTYPES[type],i=pIdx(type);
+  openModal('colony',`<h2 style="color:${d.col}">${d.name} colonized</h2><p class="sub">${d.blurb}</p>
+  <div class="sec"><div class="lbl">Starter kit in ${d.name}'s storage</div><div style="display:flex;flex-wrap:wrap;gap:6px 14px">${Object.keys(d.kit).map(k=>`<span style="display:inline-flex;align-items:center;gap:5px;font-size:13px">${img(k,18)}<b>${d.kit[k]}</b> ${N(k)}</span>`).join('')}</div></div>
+  <p style="color:var(--dim);font-size:13px">Every planet has its own map and its own storage. Research is shared and draws from all of them. Build a Cargo Silo to ship items between planets. Switch planets with the bar at the top left, or <kbd>[</kbd> and <kbd>]</kbd>.</p>
+  <div class="row"><button class="btn pri" data-act="planet" data-i="${i}">Go to ${d.name}</button><button class="btn" data-act="closem">Stay here</button></div>`);
+  chord();
+}
 function showVictory(){
-  const tot=Object.values(made).reduce((a,b)=>a+b,0);
-  openModal('win',`<h2 style="color:var(--amber)">Orbit reached</h2><p class="sub">The rocket cleared the atmosphere. Your factory made ${fmt(tot)} items with ${ents.length-1} buildings in ${fmtTime(playTime)}. Repeatable research is still open if you want to keep scaling.</p><div class="row"><button class="btn pri" data-act="closem">Keep building</button></div>`);
+  let tot=0,bld=0;planets.forEach((p,i)=>{const m=i===loadedP?made:p.made;for(const k in m)tot+=m[k];bld+=(i===loadedP?ents:p.ents).length-1});
+  openModal('win',`<h2 style="color:var(--amber)">The Ark has launched</h2><p class="sub">Built from four worlds and pushed out of Home orbit. Across ${planets.length} planets your factories made ${fmt(tot)} items with ${fmt(bld)} buildings in ${fmtTime(playTime)}, flying ${fmt(shipped)} cargo rockets between them. Repeatable research is still open if you want to keep scaling.</p><div class="row"><button class="btn pri" data-act="closem">Keep building</button></div>`);
   chord();
 }
 
@@ -2092,6 +2605,18 @@ function onAct(ev){
     case'prodwin':prodWin=+r;renderProd();break;
     case'prodfilter':prodFilter=r;renderProd();break;
     case'prodfind':prodFindStalled(r);break;
+    case'prio':if(inspected&&inspected.type==='psplit'){inspected.prio=r;blip(600,0.05,'triangle');renderInspector()}break;
+    case'alertgo':alertGo(r);break;
+    case'planet':if(!modalEl.hidden&&modalEl.dataset.kind==='colony')closeModal();switchPlanet(i);break;
+    case'trade':openTrade();break;
+    case'tradego':{const[tx,ty]=r.split(',').map(Number);closeModal();switchPlanet(i);const e=at(tx,ty);if(e){cam.x=tx*T+T/2;cam.y=ty*T+T/2;if(zoom<1)zoom=1.2;openInspector(e)}break}
+    case'dprole':if(inspected&&inspected.type==='dport'){const x=dportX(inspected);if(x.role!==r){x.role=r;if(r==='recv'){inspected.buf.forEach(addInv);inspected.buf=[]}}blip(600,0.05,'triangle');renderInspector()}break;
+    case'dpch':if(inspected&&inspected.type==='dport'){dportX(inspected).ch=i;blip(600,0.05,'triangle');renderInspector()}break;
+    case'ark':openArk();break;case'arkon':ark.on=!ark.on;renderArk();break;case'arklaunch':launchArk();break;
+    case'silodest':if(inspected&&inspected.type==='silo'){siloX(inspected).dest=i;blip(600,0.05,'triangle');renderInspector()}break;
+    case'siloflt':if(inspected&&inspected.type==='silo'){const x=siloX(inspected),j=x.flt.indexOf(r);if(j>=0)x.flt.splice(j,1);else if(x.flt.length<4)x.flt.push(r);else toast('A silo takes up to 4 item types. Remove one first.');blip(600,0.05,'triangle');renderInspector()}break;
+    case'silogo':if(inspected&&inspected.type==='silo'){const x=siloX(inspected);x.go=true;toast(siloFuelHave(x)<SILO_FUEL?`Launch is waiting for ${SILO_FUEL} Rocket Fuel.`:'Charging for launch');renderInspector()}break;
+    case'siloload':if(inspected&&inspected.type==='silo'){siloLoad(inspected);renderInspector()}break;
     case'cancelr':if(active){refund(paid);paid={};active=null;renderTech()}break;
     case'queue':queueTech(r);renderTech();break;
     case'unqueue':rq=rq.filter(q=>q!==r);renderTech();break;
@@ -2123,10 +2648,11 @@ function onAct(ev){
 
 // ================== MINIMAP ==================
 const mctx=miniEl.getContext('2d');
-const MINI_ENT={belt:'#c99a3a',belt2:'#d9564a',belt3:'#4aa0e8',belt4:'#c070f0',miner:'#9aa4b0',miner2:'#bcd4ec',pump:'#7a6a50',furnace:'#c4683f',furnace2:'#7ab4e8',assembler:'#6a84a2',assembler2:'#8a76b2',assembler3:'#5cc0a4',refinery:'#7aa89e',splitter:'#d9a43a',filter:'#5bbf7a',chest:'#8a6a40',tunnel:'#7a828a',depot:'#e0b050',pole:'#c8874a',pole2:'#b9c4ce',substation:'#ffd178',generator:'#e05a3a',wind:'#e8ecef',solar:'#3f6ac0',accumulator:'#5aa9f0',reactor:'#5fd35a'};
+const MINI_ENT={belt:'#c99a3a',belt2:'#d9564a',belt3:'#4aa0e8',belt4:'#c070f0',miner:'#9aa4b0',miner2:'#bcd4ec',pump:'#7a6a50',furnace:'#c4683f',furnace2:'#7ab4e8',assembler:'#6a84a2',assembler2:'#8a76b2',assembler3:'#5cc0a4',refinery:'#7aa89e',splitter:'#d9a43a',psplit:'#9ad97a',silo:'#e8e8ee',dport:'#6ab8ff',geo:'#ff7a2a',fusion:'#ff7ad8',filter:'#5bbf7a',chest:'#8a6a40',tunnel:'#7a828a',depot:'#e0b050',uplink:'#6ac8f0',pole:'#c8874a',pole2:'#b9c4ce',substation:'#ffd178',generator:'#e05a3a',wind:'#e8ecef',solar:'#3f6ac0',accumulator:'#5aa9f0',reactor:'#5fd35a'};
 function drawMini(){
   const id=mctx.createImageData(W,H),d=id.data;
-  for(let i=0;i<W*H;i++){const o=ore[i];let c=o?hexRgb(ORE_COL[o].mini):[36,40,33];const e=grid[i];if(e)c=e.type==='hub'?[242,169,59]:hexRgb(MINI_ENT[e.type]);d[i*4]=c[0];d[i*4+1]=c[1];d[i*4+2]=c[2];d[i*4+3]=255}
+  const pal=(PTYPES[ptype]&&PTYPES[ptype].pal)||{};const mg=hexRgb(pal.mini||'#242821'),ml=hexRgb(pal.miniLiq||'#24506d'),mr=hexRgb(pal.rock||'#3a3c3e'),mj=[34,92,44];
+  for(let i=0;i<W*H;i++){const o=ore[i],tt=terr?terr[i]:0;let c=tt===1?ml:tt===2?mr:tt===3?mj:o?hexRgb(ORE_COL[o].mini):mg;const e=grid[i];if(e)c=e.type==='hub'?[242,169,59]:hexRgb(MINI_ENT[e.type]);d[i*4]=c[0];d[i*4+1]=c[1];d[i*4+2]=c[2];d[i*4+3]=255}
   mctx.putImageData(id,0,0);
   if(sun<0.9){mctx.fillStyle=`rgba(8,12,34,${(1-sun)*0.45})`;mctx.fillRect(0,0,W,H)}
   mctx.strokeStyle='#ece6d6';mctx.lineWidth=1.5;const vw=cw/zoom/T,vh=ch/zoom/T;mctx.strokeRect(cam.x/T-vw/2,cam.y/T-vh/2,vw,vh);
@@ -2135,22 +2661,49 @@ miniEl.addEventListener('pointerdown',ev=>{const r=miniEl.getBoundingClientRect(
   const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up)};addEventListener('pointermove',mv);addEventListener('pointerup',up)});
 
 // ================== SAVE / LOAD ==================
-function serialize(){
-  return JSON.stringify({v:2,poles:true,legacy:legacyPower,seed,inv,techs:[...techs],techLv,active,paid,delivered,made,playTime,genAuto,won,cam:{x:cam.x,y:cam.y,z:zoom},
-    ents:ents.filter(e=>e.type!=='hub').map(e=>{const o={t:e.type,x:e.x,y:e.y,d:e.dir};if(e.recipe)o.r=e.recipe;if(e.filter)o.f=e.filter;if(e.items&&e.items.length)o.i=e.items.map(it=>[it.id,+it.p.toFixed(3)]);
-      if(e.out&&e.out.length)o.o=e.out;if(e.inb&&Object.keys(e.inb).length)o.b=e.inb;if(e.rin)o.ri=e.rin;if(e.fq&&e.fq.length)o.fq=e.fq;if(e.energy)o.en=e.energy;if(e.charge)o.ch=e.charge;if(e.prog)o.p=e.prog;if(e.crafting)o.c=1;if(e.buf&&e.buf.length)o.bu=e.buf;if(e.mods&&e.mods.length)o.m=e.mods;if(e.pb)o.pb=e.pb;if(e.tq&&e.tq.length)o.tq=e.tq.map(it=>[it.id,+it.t.toFixed(2)]);return o}),rq});
+function serEnt(e){const o={t:e.type,x:e.x,y:e.y,d:e.dir};if(e.recipe)o.r=e.recipe;if(e.filter)o.f=e.filter;if(e.prio)o.pr=e.prio;if(e.items&&e.items.length)o.i=e.items.map(it=>[it.id,+it.p.toFixed(3)]);
+  if(e.out&&e.out.length)o.o=e.out;if(e.inb&&Object.keys(e.inb).length)o.b=e.inb;if(e.rin)o.ri=e.rin;if(e.fq&&e.fq.length)o.fq=e.fq;if(e.energy)o.en=e.energy;if(e.charge)o.ch=e.charge;if(e.prog)o.p=e.prog;if(e.crafting)o.c=1;if(e.buf&&e.buf.length)o.bu=e.buf;if(e.mods&&e.mods.length)o.m=e.mods;if(e.pb)o.pb=e.pb;if(e.tq&&e.tq.length)o.tq=e.tq.map(it=>[it.id,+it.t.toFixed(2)]);
+  if(e.ext)o.x2=e.ext;return o}
+function loadEnt(o){if(!BUILD[o.t]||!inb(o.x,o.y)||grid[idx(o.x,o.y)])return null;const e=mkEnt(o.t,o.x,o.y,o.d);
+  if(o.r)e.recipe=o.r;if(o.f)e.filter=o.f;if(o.pr)e.prio=o.pr;if(o.i)e.items=o.i.map(([id,p])=>({id,p}));if(o.o)e.out=o.o;if(o.b)e.inb=o.b;if(o.ri)e.rin=o.ri;if(o.fq)e.fq=o.fq;if(o.en)e.energy=o.en;if(o.ch)e.charge=o.ch;if(o.p)e.prog=o.p;if(o.c)e.crafting=true;if(o.bu)e.buf=o.bu;if(o.m){e.mods=o.m;calcMods(e)}if(o.pb)e.pb=o.pb;if(o.tq)e._tq=o.tq;
+  if(o.x2)e.ext=o.x2;return e}
+// Everything about the loaded planet that isn't regenerated from its seed
+function serPlanet(p){
+  return{type:ptype,gen:pgen,seed,legacy:legacyPower,inv,delivered,made,cam:p.cam,
+    ents:ents.filter(e=>e.type!=='hub').map(serEnt),ghosts:[...ghosts.values()].map(g=>({t:g.type,x:g.x,y:g.y,d:g.dir,m:g.m})),extra:planetExtraSave()}
 }
+function planetExtraSave(){const o={};if(cleared.size)o.cl=[...cleared].map(([i,t])=>[i,+t.toFixed(1)]);if(drones.length)o.dr=drones.map(d=>({...d,t:+d.t.toFixed(2)}));return Object.keys(o).length?o:null}
+function planetExtraLoad(x){if(!x)return;if(Array.isArray(x.dr))drones=x.dr.filter(d=>d&&Array.isArray(d.items));if(!Array.isArray(x.cl))return;for(const[i,t]of x.cl){if(terr[i]===3){terr[i]=0;cleared.set(i,t)}}chunkCache.clear()}
+function serialize(){
+  if(planets[curP])planets[curP].cam={x:cam.x,y:cam.y,z:zoom};
+  const ps=planets.map((p,i)=>withPlanet(i,()=>serPlanet(p)));
+  return JSON.stringify({v:3,cur:curP,planets:ps,techs:[...techs],techLv,active,paid,playTime,genAuto,won,upSent,rq,global:globalExtraSave()});
+}
+function globalExtraSave(){return{flights:flights.map(f=>({...f,t:+f.t.toFixed(1)})),log:tradeLog.slice(-60),shipped,ark,droneTrips}}
+function globalExtraLoad(x){flights=[];tradeLog=[];shipped=0;ark={phase:0,paid:{},on:false,launched:false};droneTrips=0;if(!x)return;if(Array.isArray(x.flights))flights=x.flights.filter(f=>f&&f.items&&planets[f.to]);if(Array.isArray(x.log))tradeLog=x.log;shipped=x.shipped||0;if(x.ark&&typeof x.ark==='object')ark={phase:x.ark.phase||0,paid:x.ark.paid||{},on:!!x.ark.on,launched:!!x.ark.launched};droneTrips=x.droneTrips||0}
 function load(str){
-  const s=JSON.parse(str);if(!s||s.v!==2)return false;
-  seed=s.seed;legacyPower=s.poles===true?!!s.legacy:true;powerDirty=true;ents=[];grid=new Array(W*H).fill(null);inv=s.inv||{};techs=new Set(s.techs||[]);techLv=s.techLv||{};active=s.active||null;paid=s.paid||{};delivered=s.delivered||{};made=s.made||{};playTime=s.playTime||0;genAuto=!!s.genAuto;won=!!s.won;launch=null;
-  buckets=[];curMade={};curDel={};
-  genWorld();makeHub();
-  for(const o of s.ents||[]){if(!BUILD[o.t]||!inb(o.x,o.y)||grid[idx(o.x,o.y)])continue;const e=mkEnt(o.t,o.x,o.y,o.d);
-    if(o.r)e.recipe=o.r;if(o.f)e.filter=o.f;if(o.i)e.items=o.i.map(([id,p])=>({id,p}));if(o.o)e.out=o.o;if(o.b)e.inb=o.b;if(o.ri)e.rin=o.ri;if(o.fq)e.fq=o.fq;if(o.en)e.energy=o.en;if(o.ch)e.charge=o.ch;if(o.p)e.prog=o.p;if(o.c)e.crafting=true;if(o.bu)e.buf=o.bu;if(o.m){e.mods=o.m;calcMods(e)}if(o.pb)e.pb=o.pb;if(o.tq)e._tq=o.tq}
-  retunnel();
-  for(const e of ents)if(e._tq){if(e.role==='in'&&e.pair)e.tq=e._tq.map(([id,t])=>({id,t}));else e._tq.forEach(([id])=>addInv(id));delete e._tq}
+  let s=JSON.parse(str);if(!s)return false;
+  if(s.v===2)s={v:3,cur:0,techs:s.techs,techLv:s.techLv,active:s.active,paid:s.paid,playTime:s.playTime,genAuto:s.genAuto,won:s.won,upSent:s.upSent,rq:s.rq,
+    planets:[{type:'home',gen:1,seed:s.seed,legacy:s.poles===true?!!s.legacy:true,inv:s.inv,delivered:s.delivered,made:s.made,cam:s.cam?{x:s.cam.x,y:s.cam.y,z:s.cam.z||1}:null,ents:s.ents||[]}]};
+  if(s.v!==3||!Array.isArray(s.planets)||!s.planets.length)return false;
+  techs=new Set(s.techs||[]);techLv=s.techLv||{};active=s.active||null;paid=s.paid||{};playTime=s.playTime||0;genAuto=!!s.genAuto;won=!!s.won;upSent=s.upSent||0;launch=null;
   rq=Array.isArray(s.rq)?s.rq.filter(id=>TECH_BY[id]):[];
-  if(s.cam){cam.x=s.cam.x;cam.y=s.cam.y;zoom=s.cam.z||1}
+  planets=[];
+  for(const pd of s.planets){if(!PTYPES[pd.type])continue;
+    const p=makePlanet(pd.type,pd.seed,pd.gen||1);planets.push(p);loadP(p);
+    legacyPower=!!pd.legacy;powerDirty=true;inv=pd.inv||{};delivered=pd.delivered||{};made=pd.made||{};
+    for(const o of pd.ents||[])loadEnt(o);
+    retunnel();
+    for(const e of ents)if(e._tq){if(e.role==='in'&&e.pair)e.tq=e._tq.map(([id,t])=>({id,t}));else e._tq.forEach(([id])=>addInv(id));delete e._tq}
+    for(const g of pd.ghosts||[])if(BUILD[g.t]&&inb(g.x,g.y)&&!grid[idx(g.x,g.y)])ghosts.set(idx(g.x,g.y),{ghost:true,type:g.t,x:g.x,y:g.y,dir:g.d,m:g.m||{}});
+    planetExtraLoad(pd.extra);
+    if(pd.cam)p.cam=pd.cam;stashP(p)}
+  if(!planets.length)return false;
+  globalExtraLoad(s.global);
+  // saves from before colonies: a finished launch means Cinder (and any later colony techs) already happened
+  for(const id in COLONY_TECH)if(techs.has(id)&&pIdx(COLONY_TECH[id])<0)colonize(COLONY_TECH[id]);
+  curP=Math.max(0,Math.min(planets.length-1,s.cur||0));simP=curP;loadP(planets[curP]);
+  const c=planets[curP].cam;cam.x=c.x;cam.y=c.y;zoom=c.z||1;
   return true;
 }
 function save(){try{localStorage.setItem(SAVE_KEY,serialize())}catch(e){}}
@@ -2167,7 +2720,7 @@ function start(data){
   if(!loaded){try{const s=localStorage.getItem(SAVE_KEY);if(s)loaded=load(s)}catch(e){loaded=false}}
   if(!loaded){newGame();openHelp()}
   try{window.claude?.hot?.snapshot(()=>({s:serialize(),bp:blueprints}))}catch(e){}
-  buildHotbar();renderObjectives();updateUI();drawMini();updateModebar();
+  buildHotbar();renderObjectives();updateUI();drawMini();updateModebar();renderPBar();
   requestAnimationFrame(t=>{last=t;requestAnimationFrame(frame)});
 }
 window.claude?.hot?.ready?window.claude.hot.ready(start):start(window.claude?.hot?.data??{});

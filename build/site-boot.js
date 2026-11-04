@@ -9,7 +9,7 @@ async function api(p,opt={}){
   if(!r.ok){const er=new Error(j.error||`Request failed (${r.status})`);er.status=r.status;throw er}
   return j;
 }
-function metaNow(){return{playTime:Math.floor(playTime),techs:techs.size,buildings:ents.length-1,won,day:Math.floor(playTime/DAY)+1}}
+function metaNow(){let b=0;planets.forEach((p,i)=>{b+=(i===loadedP?ents:p.ents).length-1});return{playTime:Math.floor(playTime),techs:techs.size,buildings:b,planets:planets.length,won,day:Math.floor(playTime/DAY)+1}}
 function ago(iso){if(!iso)return'';const s=Math.max(0,(Date.now()-new Date(iso).getTime())/1000);if(s<60)return'just now';if(s<3600)return Math.floor(s/60)+' min ago';if(s<86400)return Math.floor(s/3600)+' h ago';return Math.floor(s/86400)+' days ago'}
 function setSaveLabel(t){saveLabel=t;renderAcctBtn()}
 function renderAcctBtn(){acctBtn.innerHTML=`${esc(guest?'Guest':me?me.username:'Account')} <kbd>${esc(saveLabel||'menu')}</kbd>`}
@@ -79,7 +79,7 @@ function renderGate(){
       if(!sv)return`<div class="scard empty"><div class="sn">Slot ${s}</div><div class="st2">Empty</div><div class="sm2">Start a fresh world with a new map.</div><div class="row"><button class="btn pri sm" data-g="new" data-s="${s}" type="button">Start new factory</button></div></div>`;
       const m=sv.meta||{};
       return`<div class="scard"><div class="sn">Slot ${s}${m.won?' · Launched':''}</div><div class="st2">Day ${m.day||1}</div>
-        <div class="sm2">${m.techs||0} techs · ${m.buildings||0} buildings<br>Played ${fmtTime(m.playTime||0)}<br>Saved ${ago(sv.updated_at)}</div>
+        <div class="sm2">${m.techs||0} techs · ${m.buildings||0} buildings${m.planets>1?` · ${m.planets} planets`:""}<br>Played ${fmtTime(m.playTime||0)}<br>Saved ${ago(sv.updated_at)}</div>
         <div class="row"><button class="btn pri sm" data-g="open" data-s="${s}" type="button">Continue</button>${slotDelArm===s?`<button class="btn sm danger" data-g="del2" data-s="${s}" type="button">Delete for good</button><button class="btn sm" data-g="del0" type="button">Keep</button>`:`<button class="btn sm" data-g="del" data-s="${s}" type="button">Delete</button>`}</div></div>`}).join('')+'</div>';
   }
   gboxEl.innerHTML=`<div class="ghead"><div><h1 class="glogo" style="font-size:38px">Foundry<span>Line</span></h1><p class="gwho">${who}</p></div>
