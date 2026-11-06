@@ -5,6 +5,7 @@ A factory automation game you play in the browser, with accounts and cloud saves
 - Create an account, or play as a guest with saves kept in your browser
 - Three save slots per account, saved to the server every 45 seconds and when you switch tabs
 - Blueprints sync to your account
+- Beating the game (launching the Ark) unlocks creative-mode saves for the account
 - No npm packages: the server uses Node's built-in web server, password hashing (scrypt) and SQLite
 
 ## Run it on your computer
@@ -73,7 +74,7 @@ All routes return JSON. Every route except register, login and logout needs the 
 | POST | `/api/register` | `{username, password}` creates an account and logs in |
 | POST | `/api/login` | `{username, password}` |
 | POST | `/api/logout` | Ends the session |
-| GET | `/api/me` | Current username |
+| GET | `/api/me` | Current username, and whether the account has beaten the game (unlocks creative saves) |
 | GET | `/api/saves` | Summary of each slot |
 | GET / PUT / DELETE | `/api/saves/1` to `/3` | Read, write `{data, meta}`, or clear a slot |
 | GET / PUT | `/api/blueprints` | Read or replace the blueprint list |

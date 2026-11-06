@@ -129,9 +129,9 @@ route('POST', '/api/logout', false, async (req, res) => {
   send(res, 200, { ok: true });
 });
 
-route('GET', '/api/me', true, async (req, res, user) => send(res, 200, { username: user.username }));
+route('GET', '/api/me', true, async (req, res, user) => send(res, 200, { username: user.username, beaten: !!user.beaten }));
 
-route('GET', '/api/saves', true, async (req, res, user) => send(res, 200, { slots: SLOTS, saves: db.listSaves(user.id) }));
+route('GET', '/api/saves', true, async (req, res, user) => send(res, 200, { slots: SLOTS, saves: db.listSaves(user.id), beaten: !!user.beaten }));
 
 route('GET', '/api/saves/(\\d+)', true, async (req, res, user, m) => {
   const slot = Number(m[1]);
@@ -148,9 +148,11 @@ async function putSave(req, res, user, m) {
   if (typeof data !== 'string' || !data.startsWith('{')) return send(res, 400, { error: 'Save data is missing.' });
   const m2 = meta && typeof meta === 'object' ? {
     playTime: Number(meta.playTime) || 0, techs: Number(meta.techs) || 0, buildings: Number(meta.buildings) || 0,
-    day: Number(meta.day) || 1, won: !!meta.won, planets: Math.min(9, Number(meta.planets) || 1),
+    day: Number(meta.day) || 1, won: !!meta.won, planets: Math.min(9, Number(meta.planets) || 1), creative: !!meta.creative,
   } : {};
   db.putSave(user.id, slot, data, m2);
+  // a real (non-creative) win unlocks creative saves for this account
+  if (m2.won && !m2.creative && !user.beaten) db.setBeaten(user.id);
   send(res, 200, { ok: true, savedAt: new Date().toISOString() });
 }
 route('PUT', '/api/saves/(\\d+)', true, putSave);

@@ -9,7 +9,9 @@ async function api(p,opt={}){
   if(!r.ok){const er=new Error(j.error||`Request failed (${r.status})`);er.status=r.status;throw er}
   return j;
 }
-function metaNow(){let b=0;planets.forEach((p,i)=>{b+=(i===loadedP?ents:p.ents).length-1});return{playTime:Math.floor(playTime),techs:techs.size,buildings:b,planets:planets.length,won,day:Math.floor(playTime/DAY)+1}}
+function metaNow(){let b=0;planets.forEach((p,i)=>{b+=(i===loadedP?ents:p.ents).length-1});return{playTime:Math.floor(playTime),techs:techs.size,buildings:b,planets:planets.length,won,creative,day:Math.floor(playTime/DAY)+1}}
+let beaten=false;
+function onGameWon(){if(creative)return;beaten=true;try{localStorage.setItem('fl_beaten','1')}catch(e){}save();if(!guest)cloudSave()}
 function ago(iso){if(!iso)return'';const s=Math.max(0,(Date.now()-new Date(iso).getTime())/1000);if(s<60)return'just now';if(s<3600)return Math.floor(s/60)+' min ago';if(s<86400)return Math.floor(s/3600)+' h ago';return Math.floor(s/86400)+' days ago'}
 function setSaveLabel(t){saveLabel=t;renderAcctBtn()}
 function renderAcctBtn(){acctBtn.innerHTML=`${esc(guest?'Guest':me?me.username:'Account')} <kbd>${esc(saveLabel||'menu')}</kbd>`}
@@ -76,9 +78,9 @@ function renderGate(){
   if(!slotData)cards='<p class="gsub">Loading your factories…</p>';
   else{
     cards='<div class="slots3">'+[1,2,3].map(s=>{const sv=slotData.find(x=>x.slot===s);
-      if(!sv)return`<div class="scard empty"><div class="sn">Slot ${s}</div><div class="st2">Empty</div><div class="sm2">Start a fresh world with a new map.</div><div class="row"><button class="btn pri sm" data-g="new" data-s="${s}" type="button">Start new factory</button></div></div>`;
+      if(!sv)return`<div class="scard empty"><div class="sn">Slot ${s}</div><div class="st2">Empty</div><div class="sm2">Start a fresh world with a new map.${beaten?' Or build freely in creative mode: everything unlocked, nothing costs anything.':''}</div><div class="row"><button class="btn pri sm" data-g="new" data-s="${s}" type="button">Start new factory</button>${beaten?`<button class="btn sm" data-g="newc" data-s="${s}" type="button">Creative world</button>`:''}</div></div>`;
       const m=sv.meta||{};
-      return`<div class="scard"><div class="sn">Slot ${s}${m.won?' · Launched':''}</div><div class="st2">Day ${m.day||1}</div>
+      return`<div class="scard"><div class="sn">Slot ${s}${m.creative?' · Creative':m.won?' · Ark launched':''}</div><div class="st2">Day ${m.day||1}</div>
         <div class="sm2">${m.techs||0} techs · ${m.buildings||0} buildings${m.planets>1?` · ${m.planets} planets`:""}<br>Played ${fmtTime(m.playTime||0)}<br>Saved ${ago(sv.updated_at)}</div>
         <div class="row"><button class="btn pri sm" data-g="open" data-s="${s}" type="button">Continue</button>${slotDelArm===s?`<button class="btn sm danger" data-g="del2" data-s="${s}" type="button">Delete for good</button><button class="btn sm" data-g="del0" type="button">Keep</button>`:`<button class="btn sm" data-g="del" data-s="${s}" type="button">Delete</button>`}</div></div>`}).join('')+'</div>';
   }
@@ -99,25 +101,26 @@ function renderGateKeep(username){renderGate();const u=$('gUser');if(u)u.value=u
 async function loadSlots(){
   slotData=null;renderGate();
   if(guest){
+    try{beaten=localStorage.getItem('fl_beaten')==='1'}catch(e){beaten=false}
     slotData=[];for(let s=1;s<=3;s++){try{const v=localStorage.getItem(GUEST_KEY(s));if(v){const o=JSON.parse(v);slotData.push({slot:s,meta:o.meta,updated_at:o.at})}}catch(e){}}
     renderGate();return}
-  try{const r=await api('/saves');slotData=r.saves||[]}
+  try{const r=await api('/saves');slotData=r.saves||[];beaten=!!r.beaten}
   catch(e){if(e.status===401){me=null;showGate('login');return}gateErr=e.message;slotData=[]}
   renderGate();
 }
-async function openSlot(s,isNew){
+async function openSlot(s,isNew,creativeNew){
   slot=s;let data=null;
   if(!isNew){
     if(guest){try{data=JSON.parse(localStorage.getItem(GUEST_KEY(s))).data}catch(e){data=null}}
     else{try{data=(await api('/saves/'+s)).data}catch(e){gateErr=e.message;renderGate();return}}
   }
-  beginGame(data);
+  beginGame(data,creativeNew);
 }
-function beginGame(str){
+function beginGame(str,creativeNew){
   if(!iconsMade){makeIcons();iconsMade=true}
   closeAll();
   let ok=false;if(str){try{ok=load(str)}catch(e){ok=false}}
-  if(!ok)newGame();
+  if(!ok){newGame();if(creativeNew)setupCreative()}
   clearModes();
   simSpeed=1;setSpeed(1);
   buildHotbar();objDone=0;renderObjectives();updateUI();drawMini();updateModebar();
@@ -139,6 +142,7 @@ gateEl.addEventListener('click',async ev=>{
   else if(g==='logout'){try{await api('/logout',{method:'POST'})}catch(e){}me=null;loadBP();renderAcctBtn();showGate('login')}
   else if(g==='open')openSlot(s,false);
   else if(g==='new')openSlot(s,true);
+  else if(g==='newc'&&beaten)openSlot(s,true,true);
   else if(g==='del'){slotDelArm=s;renderGate()}
   else if(g==='del0'){slotDelArm=0;renderGate()}
   else if(g==='del2'){slotDelArm=0;if(guest){try{localStorage.removeItem(GUEST_KEY(s))}catch(e){}}else{try{await api('/saves/'+s,{method:'DELETE'})}catch(e){gateErr=e.message}}loadSlots()}

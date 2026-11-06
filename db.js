@@ -33,13 +33,16 @@ db.exec(`
     data text not null,
     updated_at text not null);
 `);
+// Beating the game unlocks creative saves for the whole account
+try { db.exec('alter table users add column beaten integer not null default 0'); } catch (e) { /* column already there */ }
 db.prepare('delete from sessions where expires_at < ?').run(Date.now());
 
 const st = {
   createUser: db.prepare('insert into users(username, username_lc, pass) values(?,?,?)'),
   userByName: db.prepare('select id, username, pass from users where username_lc=?'),
   createSession: db.prepare('insert into sessions(token_hash, user_id, expires_at) values(?,?,?)'),
-  userBySession: db.prepare('select u.id, u.username from sessions s join users u on u.id=s.user_id where s.token_hash=? and s.expires_at > ?'),
+  userBySession: db.prepare('select u.id, u.username, u.beaten from sessions s join users u on u.id=s.user_id where s.token_hash=? and s.expires_at > ?'),
+  setBeaten: db.prepare('update users set beaten=1 where id=?'),
   deleteSession: db.prepare('delete from sessions where token_hash=?'),
   listSaves: db.prepare('select slot, meta, updated_at from saves where user_id=? order by slot'),
   getSave: db.prepare('select data, meta, updated_at from saves where user_id=? and slot=?'),
@@ -66,6 +69,7 @@ module.exports = {
     }
   },
   userByName: username => plain(st.userByName.get(username.toLowerCase())),
+  setBeaten: userId => { st.setBeaten.run(userId); },
   createSession: (tokenHash, userId, expiresMs) => { st.createSession.run(tokenHash, userId, expiresMs); },
   userBySession: tokenHash => plain(st.userBySession.get(tokenHash, Date.now())),
   deleteSession: tokenHash => { st.deleteSession.run(tokenHash); },
